@@ -2,6 +2,8 @@
 # coding: utf-8
 
 '''
+DESCRIPTION
+===========
 Simple template to preven accidental closure of the BRIDGE.
 It provides shut-down function to ensure safe exit.
 It also disables x button.
@@ -14,6 +16,12 @@ Menus by Bryan Oakley:
 https://stackoverflow.com/questions/3520494/class-menu-in-tkinter-gui
 Iconify/withdraw/deiconify reading:
 https://stackoverflow.com/questions/22834150/difference-between-iconify-and-withdraw-in-python-tkinter
+
+TO DOes and ISSUES
+==================
+* Make a large Toplevel pop-up window for Help and About.
+    Not much in there yet, but a good start.
+
 '''
 
 
@@ -54,8 +62,15 @@ class MenuBar(tk.Menu):
         deviceMenu.add_command(label="RGA", command=lambda: None)
         deviceMenu.add_command(label="SRS-screen", command=lambda: None)
 
+        helpMenu = tk.Menu(self, tearoff=False)
+        self.add_cascade(label="Help", underline=0, menu=helpMenu)
+        helpMenu.add_command(label="About", command=lambda: None)
+        helpMenu.add_command(label="Help", command=lambda: None)
+
+
+
 class MainApp(tk.Tk):
-    def __init__(self, title="MAIN", size="200x200+100+100"):
+    def __init__(self, master=None, title="MAIN", size="200x200+100+100"):
         super().__init__()
         self.title(title)
         self.geometry(size)
@@ -67,14 +82,16 @@ class MainApp(tk.Tk):
         tk.Button(self, text='QUIT', command=lambda: ConfirmQuit(self)).\
                 pack()
 
-        menubar = MenuBar(self)
-        self.config(menu=menubar)
-
+        #menubar = MenuBar(self)
+        self.config(menu = MenuBar(self))
+        #<RUN mainloop()>
+        self.mainloop()
 
 
 def main():
-    root = MainApp()
-    root.mainloop()
+    #<Can specify "title" and "size" here>
+    root = MainApp(title="New")
+    #root.mainloop()
 
 if __name__ == "__main__":
     main()
