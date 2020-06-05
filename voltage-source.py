@@ -51,7 +51,7 @@ class MainApp(tk.Tk):
         self.master = master
         self.geometry("+100+100")
         self.resizable(width=False, height=False)
-        self.protocol("WM_DELETE_WINDOW", lambda: self.on_quit)
+        self.protocol("WM_DELETE_WINDOW", self.on_quit)
 
         # Link to volmeter
         self.VM = Voltage_source()
