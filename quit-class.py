@@ -5,8 +5,15 @@
 Simple template to preven accidental closure of the BRIDGE.
 It provides shut-down function to ensure safe exit.
 It also disables x button.
-Based on Reblochon Masque
+Based on Reblochon Masque:
 https://stackoverflow.com/questions/51690259/create-a-popup-window-to-confirm-quitting-a-tkinter-app
+Also good reads:
+https://stackoverflow.com/questions/18067915/what-is-the-purpose-of-master-and-master-none-in-an-init-function-in-python
+https://stackoverflow.com/questions/24729119/what-does-calling-tk-actually-do
+Menus by Bryan Oakley:
+https://stackoverflow.com/questions/3520494/class-menu-in-tkinter-gui
+Iconify/withdraw/deiconify reading:
+https://stackoverflow.com/questions/22834150/difference-between-iconify-and-withdraw-in-python-tkinter
 '''
 
 
@@ -31,7 +38,21 @@ class ConfirmQuit(tk.Toplevel):
         sleep(1)
         master.destroy()
 
+class MenuBar(tk.Menu):
+    def __init__(self, master=None):
+        tk.Menu.__init__(self, master=None)
 
+        fileMenu = tk.Menu(self, tearoff=False)
+        self.add_cascade(label="File", underline=0, menu=fileMenu)
+        fileMenu.add_command(label="Exit", underline=1, command=lambda: ConfirmQuit(master))
+
+        deviceMenu = tk.Menu(self, tearoff=True)
+        self.add_cascade(label="Devices", underline=0, menu=deviceMenu)
+        #<This menu should be dynamically created as devices are loaded>
+        deviceMenu.add_command(label="Camera", command=lambda: None)
+        deviceMenu.add_command(label="Glassman", command=lambda: None)
+        deviceMenu.add_command(label="RGA", command=lambda: None)
+        deviceMenu.add_command(label="SRS-screen", command=lambda: None)
 
 class MainApp(tk.Tk):
     def __init__(self, title="MAIN", size="200x200+100+100"):
@@ -39,11 +60,17 @@ class MainApp(tk.Tk):
         self.title(title)
         self.geometry(size)
         self.resizable(width=False, height=False)
+        #<Also could use withdraw(): no taskbar icon | use deiconify to restore>
         # self.protocol("WM_DELETE_WINDOW", self.iconify)               ## minimize
         self.protocol("WM_DELETE_WINDOW", lambda: None)                 ## do nothing
         # self.protocol("WM_DELETE_WINDOW", lambda: ConfirmQuit(self))  ## confirm close
         tk.Button(self, text='QUIT', command=lambda: ConfirmQuit(self)).\
                 pack()
+
+        menubar = MenuBar(self)
+        self.config(menu=menubar)
+
+
 
 def main():
     root = MainApp()
