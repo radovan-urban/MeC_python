@@ -3,22 +3,21 @@ import cv2
 import time
 
 print("Usage: press 'q' to quit.")
-print("Prints frame-rate every 5 seconds.")
+print("Prints a camera frame-rate every second.")
 
 cap = cv2.VideoCapture(0)
 start_time = time.time()
 frame_counter=0
-#print("Frame rate [frames/second]:  ", end="")
 while(True):
     delta_time = time.time() - start_time
     #print(time.time())
     if (delta_time > 1):
         frate = frame_counter / delta_time
         print("Frame rate [frames/second]:  {:4.2f}  ".format(frate), end="")
-        print("\r", end='')
+        print("\r", end="")
         start_time = time.time()
         frame_counter = 0
-    
+
     # Capture frame-by-frame
     ret, frame = cap.read()
 
@@ -31,6 +30,7 @@ while(True):
         break
     frame_counter += 1
 
+print("\n")
 # When everything done, release the capture
 cap.release()
 cv2.destroyAllWindows()
