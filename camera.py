@@ -18,6 +18,7 @@ TODOes and ISSUES
 import tkinter as tk
 import cv2
 import PIL.Image, PIL.ImageTk
+import time
 
 class Controls(tk.Frame):
     def __init__(self):
@@ -57,7 +58,6 @@ class MainApp(tk.Tk):
             self.image = PIL.Image.fromarray(frame)   # this can be scalled
             self.photo = PIL.ImageTk.PhotoImage(self.image)
             self.canvas.create_image(0, 0, image = self.photo, anchor = tk.NW)
-
         self.after(self.delay, self.update_GUI)
 
     def on_quit(self):
