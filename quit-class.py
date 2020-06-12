@@ -29,30 +29,35 @@ import tkinter as tk
 from time import sleep
 
 class ConfirmQuit(tk.Toplevel):
-    def __init__(self, master=None):
-        super().__init__(master)
-        self.geometry("200x100+100+100")
-        self.padding = 10
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        parent.update()
+        ppp="{}x{}+{}+{}".format(parent.winfo_width(), 
+                75,
+                parent.winfo_x(),
+                parent.winfo_y())
+        print(ppp)
+        self.geometry(ppp)
+        self.padding = 5
         tk.Label(self, text="Are you sure you want to quit").\
                 pack()
-        tk.Button(self, text='confirm', command=lambda: self.on_quit(master), fg='red').\
+        tk.Button(self, text='confirm', command=lambda: self.on_quit(parent), fg='red').\
                 pack(side=tk.RIGHT, fill=tk.X, padx=self.padding, pady=self.padding)
         tk.Button(self, text='Nooooo!', command=self.destroy).\
                 pack(side=tk.LEFT, fill=tk.X, padx=self.padding, pady=self.padding)
 
-    def on_quit(self, master):
-        #<steps before shutting down>
+    def on_quit(self, parent):
         print("Shutting down, HAL ...")
         sleep(1)
-        master.destroy()
+        parent.destroy()
 
 class MenuBar(tk.Menu):
-    def __init__(self, master=None):
-        tk.Menu.__init__(self, master=None)
+    def __init__(self, parent=None):
+        tk.Menu.__init__(self, parent=None)
 
         fileMenu = tk.Menu(self, tearoff=False)
         self.add_cascade(label="File", underline=0, menu=fileMenu)
-        fileMenu.add_command(label="Exit", underline=1, command=lambda: ConfirmQuit(master))
+        fileMenu.add_command(label="Exit", underline=1, command=lambda: ConfirmQuit(parent))
 
         deviceMenu = tk.Menu(self, tearoff=True)
         self.add_cascade(label="Devices", underline=0, menu=deviceMenu)
@@ -67,10 +72,28 @@ class MenuBar(tk.Menu):
         helpMenu.add_command(label="About", command=lambda: None)
         helpMenu.add_command(label="Help", command=lambda: None)
 
+class ExitFrame(tk.Frame):
+    # parent=None
+    def __init__(self, parent):
+        tk.Frame.__init__(self, parent)
+        self.config(bg="red")
+        #self.config(width=100)
+        self.config(height=150)
+        self.config(bd=2)
+        self.config(relief="ridge")
+        self.pack_propagate(False)     # prevents resizing
+        """ get size of the main window """
+        parent.update()
+        print("Main window geometry: {}x{}".\
+                format(parent.winfo_width(), parent.winfo_height()))
 
+        tk.Button(self,
+                text="KONEC",
+                command=lambda: ConfirmQuit(parent)).\
+                        pack(side="top", padx=10, pady=20, fill="both")
 
 class MainApp(tk.Tk):
-    def __init__(self, master=None, title="MAIN", size="200x200+100+100"):
+    def __init__(self, master=None, title="MAIN", size="222x333+100+100"):
         super().__init__()
         self.title(title)
         self.geometry(size)
@@ -79,11 +102,12 @@ class MainApp(tk.Tk):
         # self.protocol("WM_DELETE_WINDOW", self.iconify)               ## minimize
         self.protocol("WM_DELETE_WINDOW", lambda: None)                 ## do nothing
         # self.protocol("WM_DELETE_WINDOW", lambda: ConfirmQuit(self))  ## confirm close
-        tk.Button(self, text='QUIT', command=lambda: ConfirmQuit(self)).\
-                pack()
+
+        EF = ExitFrame(self).pack(side="top", padx=2, pady=2, fill="x", expand=True)
 
         #menubar = MenuBar(self)
         self.config(menu = MenuBar(self))
+
         #<RUN mainloop()>
         self.mainloop()
 
