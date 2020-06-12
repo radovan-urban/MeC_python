@@ -13,10 +13,10 @@ import configparser
 """ add ./devices to python path """
 sys.path.append(os.path.expanduser("./devices"))
 """ add custom packages """
-import sim
+import simple        # just for testing
+import camera
 
-procs = 2
-result = [None]*procs
+procs = 1
 
 def signal_handler(signal, frame):
     print ('\nCaught interrupt, cleaning up...')
@@ -49,19 +49,26 @@ if __name__ == '__main__':
     processes = []
     for p in range(procs):
         parent_connection, child_connection = mp.Pipe()
-        process = mp.Process(target=sim.my_dev, args=(kill_queue,child_connection,))
+        process = mp.Process(target=simple.my_dev, args=(kill_queue,child_connection,))
         process.start()
         parent_connections.append(parent_connection)
         processes.append(process)
-        print("Spawning process with PID:{}".format(process.pid) )
+
+    # trying camera
+    parent_connection, child_connection = mp.Pipe()
+    process = mp.Process(target=camera.my_dev, args=(kill_queue, child_connection, ))
+    process.start()
+    parent_connections.append(parent_connection)
+    processes.append(process)
+    # /camera
+
     # finite number of runs ...
+    result = [None]*len(processes)
     for dummy in range(100):
         for i, p_conn in enumerate(parent_connections):
             while p_conn.poll():
                 result[i] = p_conn.recv()
-        #print("Data: {:8.2f}".format(result), end="")
         print("Data: " + str(result)+"           ", end="")
-        #print(['{:.2f}'.format(item) for item in result])
         print("\r", end="")
         time.sleep(.1)
     # Finishing up ... sending a kill signal

@@ -10,9 +10,7 @@ class MainApp(tk.Tk):
             FLAG=False, kq=None, chc=None):
         super().__init__()
         print("CHILD.GUI: Entered __init__")
-        """ <Need to pass ROOT to COMMUNICATOR> """
-        self.window=self
-        
+       
         self.title(title)
         self.b_QUIT = tk.Button(self, text="QUIT", command=self.on_quit)
 
@@ -22,7 +20,9 @@ class MainApp(tk.Tk):
         if not FLAG:
             self.b_QUIT["state"] = tk.DISABLED
             self.protocol("WM_DELETE_WINDOW", lambda: None)
-
+            """ <Need to pass ROOT to COMMUNICATOR> """
+            self.window=self
+     
             self.kq = kq
             self.chc = chc
             self.comm_agent = communicator( self.window, self.kq, self.chc )
@@ -50,7 +50,7 @@ class communicator():
         self.chc = chc
         self.win = win
         self.mypid = os.getpid()
-        print("CHILD {}: kq is {}".format(self.mypid, kq))
+        print("CHILD: PID is {} and PIPE is {}".format(self.mypid, chc))
     
     def send_data(self):
         randomdata = 2.2
@@ -67,6 +67,8 @@ class communicator():
             kill_flag = self.kq.get()
             print("CHILD {}: Got {} from kill_queue ...".format(self.mypid, kill_flag))
             self.win.on_quit()
+
+        ## window update
         self.win.after(100, self.poll_queue)
 
 
