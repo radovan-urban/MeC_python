@@ -110,6 +110,13 @@ class Voltage_source():
 
     def set_voltage(self, ivolt):
         self.dac.set_voltage(ivolt)
+        
+        """
+        The return value has to be something meaningful:
+        voltage value or image array.  This is the easy
+        to pass parameters from backend to GUI.
+        """
+        return 0
 
 def main():
     #root = tk.Tk()
