@@ -20,6 +20,8 @@ import tkinter as tk
 import cv2
 import PIL.Image, PIL.ImageTk
 import time
+import random
+import os
 
 import device_communicator as dc
 
@@ -29,7 +31,7 @@ class Controls(tk.Frame):
         pass
 
 
-class MainApp(tk.Tk):
+class MainApp_camera(tk.Tk):
     def __init__(self, parent=None, title="default",
             FLAG=False, kq=None, chc=None):
         super().__init__()
@@ -41,39 +43,31 @@ class MainApp(tk.Tk):
 
         #<HARDWARE: linking to camera>
         self.capture_device = VideoCapture()
-        
+
         #<GUI: building interface>
         #self.ctrl_frame = Controls().pack(side="right")
-        
+
         self.b_QUIT = tk.Button(self, text="EXIT", command=self.on_quit)
         self.b_QUIT.pack(side="right", padx=10, pady=10)
 
         self.canvas = tk.Canvas(self, width=640, height=480)
         self.canvas.pack(side="right", padx=10, pady=10)
-        
+
         """ <COMMUNICATOR> """
         if not self.FLAG:
             self.b_QUIT["state"] = tk.DISABLED
             self.protocol("WM_DELETE_WINDOW", lambda: None)
-
             self.window = self
             self.kq = kq
             self.chc = chc
-            self.comm_agent = dc.communicator( self.window, self.kq, self.chc, 1.1 )
-            
-            # polling will be done in update_GUI
-            #self.dc.comm_agent.poll_queue()
+            self.comm_agent = dc.Dev_communicator(\
+                    self.window, self.kq, self.chc, 1.1\
+                    )
         else:
             self.b_QUIT["state"] = tk.NORMAL
             self.protocol("WM_DELETE_WINDOW", self.on_quit)
 
-
-        
-
-        # Going live ...
         self.update_GUI()
-
-        #<RUN: main loop>
         self.mainloop()
 
     def update_GUI(self):
@@ -84,15 +78,16 @@ class MainApp(tk.Tk):
             self.photo = PIL.ImageTk.PhotoImage(self.image)
             self.canvas.create_image(0, 0, image = self.photo, anchor = tk.NW)
         # poll the coomunicator queue
+        self.comm_agent.send_data(-random.uniform(0, 10))
         if not self.FLAG:
             self.comm_agent.poll_queue()
         self.after(self.delay, self.update_GUI)
 
     def on_quit(self):
-        print("Closing things up, HAL ... bye!")
+        #print("CAMERA: Closing things up, HAL ... bye!")
         self.capture_device.release_video()
+        print("CAMERA: Video device successfully released ... closing ...")
         self.destroy()
-
 
 class VideoCapture():
     def __init__(self, video_source=0):
@@ -118,32 +113,33 @@ class VideoCapture():
             return False, None
 
     def release_video(self):
-        print("Releasing camera ...")
         if self.cap.isOpened():
             self.cap.release()
 
 
 # <MAIN BODY>
 def main():
-    root = MainApp(
-            parent=None, 
-            title="Main: Camera", 
-            FLAG=True, 
-            kq=None, 
+    print("CAMERA: running MAIN ....")
+    root_camera = MainApp_camera(
+            parent=None,
+            title="Main: Camera",
+            FLAG=True,
+            kq=None,
             chc=None
             )
 
 def my_dev( kill_queue, child_comm ):
-    root = MainApp(
+    #print("CAM({}): PIPE: {}".format(os.getpid(), child_comm))
+    root_camera = MainApp_camera(
             parent=None,
-            title="CHILD: Camera", 
-            FLAG=False, 
-            kq=kill_queue, 
+            title="CHILD: Camera",
+            FLAG=False,
+            kq=kill_queue,
             chc=child_comm
             )
 
-
-
+def version():
+    print("CAMERA: version 0")
 
 
 

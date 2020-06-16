@@ -28,28 +28,34 @@ TO DOes and ISSUES
 import tkinter as tk
 from time import sleep
 
+import main_comm
+
 class ConfirmQuit(tk.Toplevel):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.parent = parent
+        """
         parent.update()
-        ppp="{}x{}+{}+{}".format(parent.winfo_width(), 
+        ppp="{}x{}+{}+{}".format(parent.winfo_width(),
                 75,
                 parent.winfo_x(),
                 parent.winfo_y())
         print(ppp)
         self.geometry(ppp)
+        """
+        self.title("BRIDGE: Confirm")
         self.padding = 5
+
         tk.Label(self, text="Are you sure you want to quit").\
-                pack()
-        tk.Button(self, text='confirm', command=lambda: self.on_quit(parent), fg='red').\
+                pack(side="top", padx = 70, pady = 30)
+        tk.Button(self, text='confirm', command=self.on_quit, fg='red').\
                 pack(side=tk.RIGHT, fill=tk.X, padx=self.padding, pady=self.padding)
         tk.Button(self, text='Nooooo!', command=self.destroy).\
                 pack(side=tk.LEFT, fill=tk.X, padx=self.padding, pady=self.padding)
 
-    def on_quit(self, parent):
-        print("Shutting down, HAL ...")
-        sleep(1)
-        parent.destroy()
+    def on_quit(self):
+        self.destroy()
+        self.parent.on_quit()
 
 class MenuBar(tk.Menu):
     def __init__(self, parent=None):
@@ -72,8 +78,7 @@ class MenuBar(tk.Menu):
         helpMenu.add_command(label="About", command=lambda: None)
         helpMenu.add_command(label="Help", command=lambda: None)
 
-class ExitFrame(tk.Frame):
-    # parent=None
+class Frame_1(tk.Frame):
     def __init__(self, parent):
         tk.Frame.__init__(self, parent)
         self.config(bg="red")
@@ -83,12 +88,14 @@ class ExitFrame(tk.Frame):
         self.config(relief="ridge")
         self.pack_propagate(False)     # prevents resizing
         """ get size of the main window """
+        """
         parent.update()
         print("Main window geometry: {}x{}".\
                 format(parent.winfo_width(), parent.winfo_height()))
+        """
 
         tk.Button(self,
-                text="KONEC",
+                text="QUIT",
                 command=lambda: ConfirmQuit(parent)).\
                         pack(side="top", padx=10, pady=20, fill="both")
 
@@ -103,18 +110,41 @@ class MainApp(tk.Tk):
         self.protocol("WM_DELETE_WINDOW", lambda: None)                 ## do nothing
         # self.protocol("WM_DELETE_WINDOW", lambda: ConfirmQuit(self))  ## confirm close
 
-        EF = ExitFrame(self).pack(side="top", padx=2, pady=2, fill="x", expand=True)
+        """ Building the interface """
+        EF = Frame_1(self).pack(side="top", padx=2, pady=2, fill="x", expand=True)
 
         #menubar = MenuBar(self)
         self.config(menu = MenuBar(self))
 
+        #self.killer = main_comm.GracefulKiller()        # not sure here?!
+
+        print("GUI: Initializing communication ...")
+        self.communicator = main_comm.Main_Comm()
+
+
+
         #<RUN mainloop()>
+        self.update_GUI()
         self.mainloop()
+
+    def update_GUI(self):
+        update_delay = 10
+        sleep(.5)
+        #print("Updating GUI ...")
+        self.communicator.Pull_Data()
+        self.after(update_delay, self.update_GUI)
+
+    def on_quit(self):
+        print("BRIDGE: Shutting down devices ...")
+        self.communicator.Stop_Devices()
+        sleep(1)
+        print("BRIDGE: HAL, power off GUI ...")
+        self.destroy()
 
 
 def main():
     #<Can specify "title" and "size" here>
-    root = MainApp(title="New")
+    root = MainApp(title="BRIDGE")
     #root.mainloop()
 
 if __name__ == "__main__":

@@ -122,6 +122,14 @@ def main():
     #root = tk.Tk()
     root = MainApp()
 
+
+def my_dev():
+    pass
+
+def version():
+    print("Volatge source: version 0.0.0")
+
+
 if __name__ == "__main__":
     main()
 
