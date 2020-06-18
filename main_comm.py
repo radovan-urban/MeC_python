@@ -18,7 +18,7 @@ except ModuleNotFoundError as err:
 
 class Read_Config:
     def __init__(self):
-        self.to_run = ['simple', 'camera']
+        self.to_run = ['simple', 'camera','voltage_source']
         """
         There will be more stuff here:
         * specifying a config file
