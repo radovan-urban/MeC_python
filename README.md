@@ -13,4 +13,4 @@ We are designing a modular system that allows to use an individual module for ea
 Follow python styling guide (https://www.python.org/dev/peps/pep-0008/)
 
 ---   
-Last updated: June 18, 2020
+Last updated: June 18, 2020 :-)
