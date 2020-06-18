@@ -3,7 +3,7 @@ import os
 import random
 import time
 import sys
-
+# Test push comment, can you find it?? 11:15 June 18
 import device_communicator as dc
 
 class MainApp(tk.Tk):
