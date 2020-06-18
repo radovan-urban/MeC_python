@@ -21,7 +21,7 @@ TO DOes and ISSUES
 ==================
 * Make a large Toplevel pop-up window for Help and About.
     Not much in there yet, but a good start.
-
+*
 '''
 
 
