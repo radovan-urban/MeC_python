@@ -21,4 +21,17 @@ class Dev_communicator():
                     format(self.mypid, kill_flag))
             self.win.on_quit()
 
+    def poll_queue_better(self):
+        #print("CHILD: inside poll_queue function")
+        if not self.kq.empty():
+            kill_flag = self.kq.get()
+            print("CHILD({}): Got {} from kill_queue ...".\
+                    format(self.mypid, kill_flag))
+            #self.win.on_quit()
+            return kill_flag
+        else:
+            return False
+
+
+
 # EOF device_communicator.py
