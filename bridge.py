@@ -57,6 +57,23 @@ class ConfirmQuit(tk.Toplevel):
         self.destroy()
         self.parent.on_quit()
 
+class ShowVariables(tk.Toplevel):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.parent = parent
+        self.title("BRIDGE: Variables")
+        self.padding = 20
+
+        self.Top_frame = tk.Frame(self, height=200, width=400, bg="darkgrey")
+        self.Top_frame.pack(side="top", padx=5, pady=5)
+        self.Bot_frame = tk.Frame(self, height=200, width=400, bg="blue")
+        self.Bot_frame.pack(side="bottom", padx=5, pady=5)
+        self.Bot_frame.pack_propagate(False)
+
+        self.all_dev_lbl = tk.Label(self.Bot_frame, text=parent.all_dev_str.get())
+        self.all_dev_lbl.pack(side="top", fill="x", expand=1)
+
+
 class MenuBar(tk.Menu):
     def __init__(self, parent=None):
         tk.Menu.__init__(self, parent=None)
@@ -68,6 +85,7 @@ class MenuBar(tk.Menu):
         deviceMenu = tk.Menu(self, tearoff=True)
         self.add_cascade(label="Devices", underline=0, menu=deviceMenu)
         #<This menu should be dynamically created as devices are loaded>
+        deviceMenu.add_command(label="Show vars", command=lambda: ShowVariables(parent))
         deviceMenu.add_command(label="Camera", command=lambda: None)
         deviceMenu.add_command(label="Glassman", command=lambda: None)
         deviceMenu.add_command(label="RGA", command=lambda: None)
@@ -94,6 +112,9 @@ class Frame_1(tk.Frame):
                 format(parent.winfo_width(), parent.winfo_height()))
         """
 
+        self.dev_lbl = tk.Label(self, text="Static Init Frame_1")
+        self.dev_lbl.pack(side="top", fill="x", expand=1)
+
         tk.Button(self,
                 text="QUIT",
                 command=lambda: ConfirmQuit(parent)).\
@@ -105,6 +126,9 @@ class MainApp(tk.Tk):
         self.title(title)
         self.geometry(size)
         self.resizable(width=False, height=False)
+        #self.all_dev_str = tk.StringVar()
+        #self.all_dev_str.set("Initial string (PARENT)")
+
         #<Also could use withdraw(): no taskbar icon | use deiconify to restore>
         # self.protocol("WM_DELETE_WINDOW", self.iconify)               ## minimize
         self.protocol("WM_DELETE_WINDOW", lambda: None)                 ## do nothing
@@ -121,8 +145,6 @@ class MainApp(tk.Tk):
         print("GUI: Initializing communication ...")
         self.communicator = main_comm.Main_Comm()
 
-
-
         #<RUN mainloop()>
         self.update_GUI()
         self.mainloop()
@@ -130,8 +152,11 @@ class MainApp(tk.Tk):
     def update_GUI(self):
         update_delay = 10
         sleep(.5)
-        #print("Updating GUI ...")
-        self.communicator.Pull_Data()
+        pulled = self.communicator.Pull_Data()
+        #self.all_dev_str.set(self.communicator.Pull_Data())
+        #self.dev_lbl = tk.Label(self, text=parent.all_dev_str.get())
+        #Frame_1(self).dev_lbl = tk.Label(self, text=self.all_dev_str.get())
+        Frame_1(self).dev_lbl["text"] = pulled
         self.after(update_delay, self.update_GUI)
 
     def on_quit(self):
