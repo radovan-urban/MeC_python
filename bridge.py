@@ -136,9 +136,6 @@ class MainApp(tk.Tk):
         self.config(menu = MenuBar(self))
         """ Interface is complete! """
 
-        self.lbl_parent = tk.Label(self, bg="green", text="INIT")
-        self.lbl_parent.pack(side="bottom")
-
         #self.killer = main_comm.GracefulKiller()        # not sure here?!
 
         print("GUI: Initializing communication ...")
