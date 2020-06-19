@@ -123,8 +123,6 @@ class MainApp(tk.Tk):
         self.title(title)
         self.geometry(size)
         self.resizable(width=False, height=False)
-        self.all_dev_str = tk.StringVar()
-        self.all_dev_str.set("Initial string (PARENT)")
 
         #<Also could use withdraw(): no taskbar icon | use deiconify to restore>
         # self.protocol("WM_DELETE_WINDOW", self.iconify)               ## minimize
@@ -137,6 +135,9 @@ class MainApp(tk.Tk):
 
         self.config(menu = MenuBar(self))
         """ Interface is complete! """
+
+        self.lbl_parent = tk.Label(self, bg="green", text="INIT")
+        self.lbl_parent.pack(side="bottom")
 
         #self.killer = main_comm.GracefulKiller()        # not sure here?!
 
@@ -156,8 +157,6 @@ class MainApp(tk.Tk):
         sleep(.5)
         pulled = self.communicator.Pull_Data()
         self.EF.dev_lbl["text"] = pulled
-
-        #print("Check state of topwindow: ", ConfirmQuit(self).state())
 
         self.after(update_delay, self.update_GUI)
 
