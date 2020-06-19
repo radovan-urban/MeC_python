@@ -32,7 +32,6 @@ from random import gauss
 import cv2
 import sys
 
-## Adding device communicator
 import device_communicator as dc
 
 try:
@@ -96,8 +95,6 @@ class MainApp_voltage(tk.Tk):
         # Link to voltmeter hardware
         self.VM = Voltage_source()
 
-        #self.update_display()  Moved to after COMMUNICATOR
-
         # Communication
         if not self.FLAG:
             self.b_QUIT["state"] = tk.DISABLED
@@ -117,7 +114,6 @@ class MainApp_voltage(tk.Tk):
         #<Create front panel and widgets>
         # This also can be a class that inherits from tk.Frame()
 
-        #self.update_display()
         #<RUN mainloop()>
         self.update_display()
         self.mainloop()
