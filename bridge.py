@@ -105,14 +105,9 @@ class Frame_1(tk.Frame):
         self.config(bd=2)
         self.config(relief="ridge")
         self.pack_propagate(False)     # prevents resizing
-        """ get size of the main window """
-        """
-        parent.update()
-        print("Main window geometry: {}x{}".\
-                format(parent.winfo_width(), parent.winfo_height()))
-        """
 
-        self.dev_lbl = tk.Label(self, text="Static Init Frame_1")
+        #self.dev_lbl = tk.Label(self, text="Static Init Frame_1")
+        self.dev_lbl = tk.Label(self, text="__init__")
         self.dev_lbl.pack(side="top", fill="x", expand=1)
 
         tk.Button(self,
@@ -120,13 +115,17 @@ class Frame_1(tk.Frame):
                 command=lambda: ConfirmQuit(parent)).\
                         pack(side="top", padx=10, pady=20, fill="both")
 
+    def update_F1():
+        pass
+
+
 class MainApp(tk.Tk):
     def __init__(self, master=None, title="MAIN", size="222x333+100+100"):
         super().__init__()
         self.title(title)
         self.geometry(size)
         self.resizable(width=False, height=False)
-        #self.all_dev_str = tk.StringVar()
+        self.all_dev_str = tk.StringVar()
         #self.all_dev_str.set("Initial string (PARENT)")
 
         #<Also could use withdraw(): no taskbar icon | use deiconify to restore>
@@ -139,6 +138,9 @@ class MainApp(tk.Tk):
 
         #menubar = MenuBar(self)
         self.config(menu = MenuBar(self))
+
+        self.lbl_parent = tk.Label(self, bg="green", text="INIT")
+        self.lbl_parent.pack(side="bottom")
 
         #self.killer = main_comm.GracefulKiller()        # not sure here?!
 
@@ -153,10 +155,13 @@ class MainApp(tk.Tk):
         update_delay = 10
         sleep(.5)
         pulled = self.communicator.Pull_Data()
-        #self.all_dev_str.set(self.communicator.Pull_Data())
+        self.all_dev_str.set(self.communicator.Pull_Data())
         #self.dev_lbl = tk.Label(self, text=parent.all_dev_str.get())
         #Frame_1(self).dev_lbl = tk.Label(self, text=self.all_dev_str.get())
-        Frame_1(self).dev_lbl["text"] = pulled
+        self.lbl_parent["text"] = pulled
+        Frame_1(self).dev_lbl["text"] = "updated"
+
+
         self.after(update_delay, self.update_GUI)
 
     def on_quit(self):
