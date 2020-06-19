@@ -70,14 +70,15 @@ class ShowVariables(tk.Toplevel):
         self.Bot_frame.pack(side="bottom", padx=5, pady=5)
         self.Bot_frame.pack_propagate(False)
 
-        self.all_dev_lbl = tk.Label(self.Bot_frame, text=parent.all_dev_str.get())
+        self.all_dev_lbl = tk.Label(self.Bot_frame, text="TopLevel__init__")
         self.all_dev_lbl.pack(side="top", fill="x", expand=1)
 
 
 class MenuBar(tk.Menu):
     def __init__(self, parent=None):
-        tk.Menu.__init__(self, parent=None)
-
+        #tk.Menu.__init__(self, parent)
+        super().__init__(parent)
+        self.parent = parent
         fileMenu = tk.Menu(self, tearoff=False)
         self.add_cascade(label="File", underline=0, menu=fileMenu)
         fileMenu.add_command(label="Exit", underline=1, command=lambda: ConfirmQuit(parent))
@@ -85,7 +86,7 @@ class MenuBar(tk.Menu):
         deviceMenu = tk.Menu(self, tearoff=True)
         self.add_cascade(label="Devices", underline=0, menu=deviceMenu)
         #<This menu should be dynamically created as devices are loaded>
-        deviceMenu.add_command(label="Show vars", command=lambda: ShowVariables(parent))
+        deviceMenu.add_command(label="Show vars", command=self.parent.display_variables)
         deviceMenu.add_command(label="Camera", command=lambda: None)
         deviceMenu.add_command(label="Glassman", command=lambda: None)
         deviceMenu.add_command(label="RGA", command=lambda: None)
@@ -107,16 +108,13 @@ class Frame_1(tk.Frame):
         self.pack_propagate(False)     # prevents resizing
 
         #self.dev_lbl = tk.Label(self, text="Static Init Frame_1")
-        self.dev_lbl = tk.Label(self, text="__init__")
+        self.dev_lbl = tk.Label(self, text="Frame_1")
         self.dev_lbl.pack(side="top", fill="x", expand=1)
 
         tk.Button(self,
                 text="QUIT",
                 command=lambda: ConfirmQuit(parent)).\
                         pack(side="top", padx=10, pady=20, fill="both")
-
-    def update_F1():
-        pass
 
 
 class MainApp(tk.Tk):
@@ -125,8 +123,6 @@ class MainApp(tk.Tk):
         self.title(title)
         self.geometry(size)
         self.resizable(width=False, height=False)
-        self.all_dev_str = tk.StringVar()
-        #self.all_dev_str.set("Initial string (PARENT)")
 
         #<Also could use withdraw(): no taskbar icon | use deiconify to restore>
         # self.protocol("WM_DELETE_WINDOW", self.iconify)               ## minimize
@@ -134,10 +130,11 @@ class MainApp(tk.Tk):
         # self.protocol("WM_DELETE_WINDOW", lambda: ConfirmQuit(self))  ## confirm close
 
         """ Building the interface """
-        EF = Frame_1(self).pack(side="top", padx=2, pady=2, fill="x", expand=True)
+        self.EF = Frame_1(self)
+        self.EF.pack(side="top", padx=2, pady=2, fill="x", expand=True)
 
-        #menubar = MenuBar(self)
         self.config(menu = MenuBar(self))
+        """ Interface is complete! """
 
         self.lbl_parent = tk.Label(self, bg="green", text="INIT")
         self.lbl_parent.pack(side="bottom")
@@ -151,16 +148,15 @@ class MainApp(tk.Tk):
         self.update_GUI()
         self.mainloop()
 
+    def display_variables(self):
+        # calls ShowVariables class
+        ShowVariables(self)
+
     def update_GUI(self):
         update_delay = 10
         sleep(.5)
         pulled = self.communicator.Pull_Data()
-        self.all_dev_str.set(self.communicator.Pull_Data())
-        #self.dev_lbl = tk.Label(self, text=parent.all_dev_str.get())
-        #Frame_1(self).dev_lbl = tk.Label(self, text=self.all_dev_str.get())
-        self.lbl_parent["text"] = pulled
-        Frame_1(self).dev_lbl["text"] = "updated"
-
+        self.EF.dev_lbl["text"] = pulled
 
         self.after(update_delay, self.update_GUI)
 
