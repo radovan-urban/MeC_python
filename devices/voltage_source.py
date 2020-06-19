@@ -28,7 +28,7 @@ TO DOes and ISSUES
 
 import tkinter as tk
 import time
-from random import gauss
+import random
 import cv2
 import sys
 
@@ -136,10 +136,11 @@ class MainApp_voltage(tk.Tk):
 
     def update_display(self):
         update_period = 250    # time in [miliseconds]
-        noise = gauss(0, .01)
+        noise = random.gauss(0, .01)
         #self.var.set( "{0:9.3f}".format(self.var.get() + noise) )
         # Communication
         if not self.FLAG:
+            self.comm_agent.send_data(random.uniform(0, 1))
             action = self.comm_agent.poll_queue_better()
             if action:
                 self.on_quit()
