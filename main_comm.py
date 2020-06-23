@@ -18,7 +18,8 @@ except ModuleNotFoundError as err:
 
 class Read_Config:
     def __init__(self):
-        self.to_run = ['simple', 'camera','voltage_source']
+        self.to_run = []
+        #self.to_run = ['simple', 'camera','voltage_source']
         """
         There will be more stuff here:
         * specifying a config file
@@ -62,8 +63,6 @@ class Main_Comm:
         for i, p_conn in enumerate(self.p_conns):
             while p_conn.poll():
                 self.results[i] = round(p_conn.recv(), 3)
-        print("Data: " + str(self.results)+"           ", end="")
-        print("\r", end="")
         return str(self.results)
 
     def Stop_Devices(self):
@@ -90,6 +89,10 @@ class GracefulKiller:
         print("Caught an interrupt signal ... claening up ...")
         print("Terminating processes ...", process.terminate())
         sys.exit(0)
+
+class Device_comm:
+    def __init__(self):
+        pass
 
 
 """ <MAIN> """
