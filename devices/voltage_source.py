@@ -28,11 +28,14 @@ TO DOes and ISSUES
 
 import tkinter as tk
 import time
-import random
+from random import gauss
 import cv2
 import sys
 
 import device_communicator as dc
+
+global GUI_voltage
+GUI_voltage = 2
 
 try:
     #<HARDWARE>
@@ -55,23 +58,47 @@ class Controls(tk.Frame):
 # Making new GUI class for voltage source
 #########################################
 class Main_GUI(tk.Frame):
+
     def __init__(self,parent):
         tk.Frame.__init__(self,parent)
-        self.config(bg="grey")
-        self.config(width=25)
-        self.config(height=25)
-        self.config(bd=2) # What does this do???
-        self.config(relief="ridge") # What does this do??
-        #self.resizeable(width=False, height=False) # Can this work here?? Maybe not..
+        self.config(bg="green")
+        self.config(width=50)
+        self.config(height=100)
+        self.config(bd=2)
+        self.config(relief="groove")
+        # Link to voltmeter class
+        self.VM = Voltage_source()
+        # Fake display voltage > can later become measured voltage
+        self.fakev = tk.StringVar()
+        self.disp = tk.Label(self, textvariable = self.fakev)
+        self.disp.pack(side="bottom")
         # Voltage Control
-        #self.var = tk.DoubleVar()
-        #self.cntr = tk.Entry(self, textvariable = self.var)
-        #self.cntr.bind('<return>', self.cmd)
-        #self.cntr.pack(side="bottom")
+        self.var = tk.DoubleVar()
+        self.cntr = tk.Entry(self, textvariable = self.var)
+        self.cntr.bind('<Return>', self.send_voltage)
+        self.cntr.pack(side="right")
+        # Labels
+        parent.vlabel = tk.Label(self, text="Voltage:")
+        parent.vlabel.pack(side="left", padx=5, pady=5, fill="x", expand=1)
+        ### Update Fake Voltage
+        self.update_display_GUI()
         # Quit Button
         parent.b_QUIT = tk.Button(self, text="QUIT", fg="red",\
                  command=parent.on_quit)
-        parent.b_QUIT.pack(side="right", padx=10, pady=10)
+        parent.b_QUIT.pack(side="bottom", padx=8, pady=4)
+
+    def update_display_GUI(self):
+        update_time = 250  # [milliseconds]
+        noise = gauss(0, .01)
+        self.fakev.set("{0:9.3f}".format(self.var.get() + noise))
+        self.after(update_time, self.update_display_GUI)
+
+    def send_voltage(self, *args):
+        self.focus()
+        voltage = self.var.get()
+        ivolt = int( 4096/10*voltage)
+        print("Entered value = {0} V  DAC input = {1}".format(voltage, ivolt))
+        self.VM.set_voltage(ivolt)
 
 
 class MainApp_voltage(tk.Tk):
@@ -81,19 +108,17 @@ class MainApp_voltage(tk.Tk):
         self.parent = parent
         self.FLAG = FLAG
 
-        self.geometry("+100+100")
-        #self.resizable(width=False, height=False) # Moved to GUI, does it work??
+        self.geometry("+700+100")   # Sets position on screen
+        self.resizable(width=False, height=False)
         self.title(title)
 
-        # Interface
+        # Loads GUI interface into main window
         EF = Main_GUI(self)
-        EF.pack(side="right", padx=5, pady=5)
+        EF.pack(side="top", padx=5, pady=5)
 
-        self.canvas =tk.Canvas(self, width = 150, height=100)
-        self.canvas.pack(side="left", padx=10, pady=10)
-
-        # Link to voltmeter hardware
-        self.VM = Voltage_source()
+        ## Changes dimensions of entire window
+        self.canvas =tk.Canvas(self, width =80, height=150)
+        self.canvas.pack(side="top", padx=10, pady=10)
 
         # Communication
         if not self.FLAG:
@@ -109,52 +134,22 @@ class MainApp_voltage(tk.Tk):
             self.b_QUIT["state"] = tk.NORMAL
             self.protocol("WM_DELETE_WINDOW", self.on_quit)
 
-        # Link to voltmeter
-        #self.VM = Voltage_source()
-        #<Create front panel and widgets>
-        # This also can be a class that inherits from tk.Frame()
-
         #<RUN mainloop()>
-        self.update_display()
+        self.update_comms()
         self.mainloop()
 
-    def create_widgets(self):
-        #<DISPLAY voltage -- fake>
-        #self.myvar = tk.StringVar()
-        #self.disp = tk.Label(self, textvariable = self.myvar)
-        #self.disp.pack(side="bottom")
-        #<CONTROL voltage>
-        self.var = tk.DoubleVar()
-        self.cntr = tk.Entry(self, textvariable = self.var)
-        self.cntr.bind('<Return>', self.cmd)
-        self.cntr.pack(side="bottom")
-        #<QUIT button>
-        #self.but_quit = tk.Button(self, text="QUIT", fg="red", command=self.on_quit)
-        #self.but_quit.pack(side="right", padx=10, pady=10)
 
-        self.update_display()
-
-    def update_display(self):
-        update_period = 250    # time in [miliseconds]
-        noise = random.gauss(0, .01)
-        #self.var.set( "{0:9.3f}".format(self.var.get() + noise) )
-        # Communication
+    def update_comms(self):   # Communication
+        update_period = 250  # time in [milliseconds]
         if not self.FLAG:
-            self.comm_agent.send_data(random.uniform(0, 1))
             action = self.comm_agent.poll_queue_better()
             if action:
                 self.on_quit()
-        self.after(update_period, self.update_display)
+        self.after(update_period, self.update_comms)
 
-
-    def cmd(self, *args):
-        self.focus()  # remove focus from CONTROL
-        voltage = self.var.get()
-        ivolt = int( 4096/10*voltage )
-        print("Entered value = {0}.  DAC input = {1}".format( voltage, ivolt))
-        self.VM.set_voltage(ivolt)
 
     def on_quit(self):
+       self.VM = Voltage_source()
        print("Shutting down ...")
        print("Setting voltage to 0 ...")
        self.VM.set_voltage(0)
@@ -181,6 +176,7 @@ class Voltage_source():
         to pass parameters from backend to GUI.
         """
         return 0
+
 
 def main():
     #root = tk.Tk()
