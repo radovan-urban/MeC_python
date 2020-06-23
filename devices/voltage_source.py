@@ -34,9 +34,6 @@ import sys
 
 import device_communicator as dc
 
-global GUI_voltage
-GUI_voltage = 2
-
 try:
     #<HARDWARE>
     import board
@@ -57,45 +54,67 @@ class Controls(tk.Frame):
 #########################################
 # Making new GUI class for voltage source
 #########################################
+
+class Volt_Graph(tk.Frame):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.parent = parent
+
+        self.config(bg="red")
+        self.config(width=350)
+        self.config(height=100)
+        self.config(bd=2)
+        self.config(relief="ridge")
+        self.grid_propagate(False)
+
+
 class Main_GUI(tk.Frame):
 
     def __init__(self,parent):
         tk.Frame.__init__(self,parent)
+        self.parent = parent
+
         self.config(bg="green")
-        self.config(width=50)
+        self.config(width=350)
         self.config(height=100)
         self.config(bd=2)
-        self.config(relief="groove")
+        self.config(relief="ridge")
+        self.grid_propagate(False)
+
+        ## Initalizing Grid
+        self.columnconfigure(0, weight=1, pad=5)
+        self.columnconfigure(1, weight=1, pad=5)
+        self.columnconfigure(2, weight=2, pad=5)
         # Link to voltmeter class
         self.VM = Voltage_source()
+        # Initalizing grid labels
+        Vlabel = tk.Label(self, text="Voltage: ", bg="black")
+        MVlabel = tk.Label(self, text="Measured Voltage: ", bg="black")
+        # Placing Labels
+        Vlabel.grid(column=0, row=1, sticky="w")
+        MVlabel.grid(column=0, row=3, sticky="w")
         # Fake display voltage > can later become measured voltage
-        self.fakev = tk.StringVar()
-        self.disp = tk.Label(self, textvariable = self.fakev)
-        self.disp.pack(side="bottom")
+        MeasuredV = tk.Label(self, textvariable = parent.fakev, width=15)
+        MeasuredV.grid(column=3, row=3, sticky="e")
         # Voltage Control
-        self.var = tk.DoubleVar()
-        self.cntr = tk.Entry(self, textvariable = self.var)
-        self.cntr.bind('<Return>', self.send_voltage)
-        self.cntr.pack(side="right")
-        # Labels
-        parent.vlabel = tk.Label(self, text="Voltage:")
-        parent.vlabel.pack(side="left", padx=5, pady=5, fill="x", expand=1)
-        ### Update Fake Voltage
-        self.update_display_GUI()
+        self.GUIvoltage = tk.DoubleVar()
+        SetV = tk.Entry(self, textvariable = self.GUIvoltage, width=15)
+        SetV.bind('<Return>', self.send_voltage)
+        SetV.grid(column=3, row=1, sticky="e")
         # Quit Button
         parent.b_QUIT = tk.Button(self, text="QUIT", fg="red",\
                  command=parent.on_quit)
-        parent.b_QUIT.pack(side="bottom", padx=8, pady=4)
+        parent.b_QUIT.grid(column=1, row=4, sticky="s")
 
     def update_display_GUI(self):
         update_time = 250  # [milliseconds]
         noise = gauss(0, .01)
-        self.fakev.set("{0:9.3f}".format(self.var.get() + noise))
+        parent.fakev.set("{0:9.3f}".format(self.GUIvoltage.get() + noise))
         self.after(update_time, self.update_display_GUI)
 
     def send_voltage(self, *args):
         self.focus()
-        voltage = self.var.get()
+        voltage = self.GUIvoltage.get()
         ivolt = int( 4096/10*voltage)
         print("Entered value = {0} V  DAC input = {1}".format(voltage, ivolt))
         self.VM.set_voltage(ivolt)
@@ -112,13 +131,20 @@ class MainApp_voltage(tk.Tk):
         self.resizable(width=False, height=False)
         self.title(title)
 
+        # Declaring variables
+        self.fakev = tk.DoubleVar()
+        self.randomV()
+
         # Loads GUI interface into main window
-        EF = Main_GUI(self)
-        EF.pack(side="top", padx=5, pady=5)
+        self.VoltmeterGUI = Main_GUI(self)
+        self.VoltmeterGraph = Volt_Graph(self)
+
+        self.VoltmeterGUI.grid(column=0, row=0)
+        self.VoltmeterGraph.grid(column=0, row=1)
 
         ## Changes dimensions of entire window
-        self.canvas =tk.Canvas(self, width =80, height=150)
-        self.canvas.pack(side="top", padx=10, pady=10)
+        self.canvas =tk.Canvas(self, width =300, height=200)
+        #self.canvas.pack(side="top", padx=10, pady=10)
 
         # Communication
         if not self.FLAG:
@@ -137,6 +163,13 @@ class MainApp_voltage(tk.Tk):
         #<RUN mainloop()>
         self.update_comms()
         self.mainloop()
+        #self.randomV()
+
+    def randomV(self):
+        update_time = 250  # [Milliseconds]
+        noise = gauss(2, .01)
+        self.fakev.set("{0:9.3f}".format(noise))
+        self.after(update_time, self.randomV)
 
 
     def update_comms(self):   # Communication
