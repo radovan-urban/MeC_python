@@ -51,9 +51,7 @@ class Controls(tk.Frame):
         super().__init__(parent)
         pass
 
-#########################################
-# Making new GUI class for voltage source
-#########################################
+''' Defining frame classes for GUI '''
 
 class Volt_Graph(tk.Frame):
     def __init__(self, parent=None):
@@ -106,11 +104,11 @@ class Main_GUI(tk.Frame):
                  command=parent.on_quit)
         parent.b_QUIT.grid(column=1, row=4, sticky="s")
 
-    def update_display_GUI(self):
-        update_time = 250  # [milliseconds]
-        noise = gauss(0, .01)
-        parent.fakev.set("{0:9.3f}".format(self.GUIvoltage.get() + noise))
-        self.after(update_time, self.update_display_GUI)
+#    def update_display_GUI(self):
+#        update_time = 250  # [milliseconds]
+#        noise = gauss(0, .01)
+#        parent.fakev.set("{0:9.3f}".format(self.GUIvoltage.get() + noise))
+#        self.after(update_time, self.update_display_GUI)
 
     def send_voltage(self, *args):
         self.focus()
@@ -144,7 +142,6 @@ class MainApp_voltage(tk.Tk):
 
         ## Changes dimensions of entire window
         self.canvas =tk.Canvas(self, width =300, height=200)
-        #self.canvas.pack(side="top", padx=10, pady=10)
 
         # Communication
         if not self.FLAG:
@@ -163,7 +160,6 @@ class MainApp_voltage(tk.Tk):
         #<RUN mainloop()>
         self.update_comms()
         self.mainloop()
-        #self.randomV()
 
     def randomV(self):
         update_time = 250  # [Milliseconds]
