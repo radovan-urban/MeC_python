@@ -95,7 +95,7 @@ class Main_GUI(tk.Frame):
         MeasuredV = tk.Label(self, textvariable = parent.fakev, width=15)
         MeasuredV.grid(column=3, row=3, sticky="e")
         # Voltage Control
-        self.GUIvoltage = tk.DoubleVar()
+        self.GUIvoltage = tk.IntVar()
         SetV = tk.Entry(self, textvariable = self.GUIvoltage, width=15)
         SetV.bind('<Return>', self.send_voltage)
         SetV.grid(column=3, row=1, sticky="e")
@@ -113,8 +113,10 @@ class Main_GUI(tk.Frame):
     def send_voltage(self, *args):
         self.focus()
         voltage = self.GUIvoltage.get()
-        ivolt = int( 4096/10*voltage)
-        print("Entered value = {0} V  DAC input = {1}".format(voltage, ivolt))
+        CalVolt = voltage / 6000
+        ivolt = int( 4096/10*CalVolt)
+        print("Entered value = {0} V  Output = {1} V".format(voltage,CalVolt))
+        print("DAC input = " + format(ivolt))
         self.VM.set_voltage(ivolt)
 
 
