@@ -22,7 +22,7 @@ import os
 
 import configparser
 
-import device_communicator as dc
+import device_communicator as dc        # might pick up different name
 
 try:
     #<HARDWARE>
@@ -50,16 +50,14 @@ class MenuBar(tk.Menu):
         self.add_cascade(label="Voltage", underline=0, menu=deviceMenu)
         deviceMenu.add_command(label="Exposure", command=lambda: None)
         deviceMenu.add_command(label="Averaging", command=lambda: None)
-        deviceMenu.add_command(label="Win position", command=parent.win_info)
+        deviceMenu.add_command(label="Win position", command=\
+                lambda: self.parent.stat_info.set("ID: {} | Geometry: {}"\
+                .format(self.parent.winfo_id(), self.parent.geometry())))
 
         helpMenu = tk.Menu(self, tearoff=False)
         self.add_cascade(label="Help", underline=0, menu=helpMenu)
         helpMenu.add_command(label="About", command=lambda: None)
         helpMenu.add_command(label="Help", command=lambda: None)
-
-
-
-''' Defining frame classes for GUI '''
 
 class Volt_Graph(tk.Frame):
     def __init__(self, parent=None):
@@ -73,7 +71,6 @@ class Volt_Graph(tk.Frame):
         self.config(relief="ridge")
         self.grid_propagate(False)
 
-
 class Main_GUI(tk.Frame):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -81,7 +78,7 @@ class Main_GUI(tk.Frame):
         bg1="darkgrey"
         self.config(bg=bg1)
         self.config(width=350)
-        self.config(height=50)
+        self.config(height=55)
         self.config(bd=2)
         self.config(relief="ridge")
         self.grid_propagate(False)
@@ -95,40 +92,49 @@ class Main_GUI(tk.Frame):
 
         # Initalizing grid labels
         Vlabel = tk.Label(self, text="High voltage [V]: ", bg=bg1)
-
-        # Placing Labels
-        Vlabel.grid(column=0, row=1, sticky="w")
-
-        # Voltage Control
+        Slabel = tk.Label(self, text="Soft voltage limit [V]: ", bg=bg1)
+       # Voltage Control
         self.V_str = tk.StringVar()
         self.V_str.set(parent.GUIvoltage.get())
         self.SetV = tk.Entry(self, textvariable = self.V_str, width=15)
         self.SetV.bind('<Return>', self.set_volt_GUI)
         self.SetV.bind('<Key Up>', self.arrow_up)
         self.SetV.bind('<Key Down>', self.arrow_down)
+
+        self.SetS = tk.Entry(self, text="1001001", width=15)
+
+        # Placing Labels
+        Vlabel.grid(column=0, row=1, sticky="w")
+        Slabel.grid(column=0, row=2, sticky="w")
         self.SetV.grid(column=3, row=1, sticky="e")
+        self.SetS.grid(column=3, row=2, sticky="e")
+
 
     def set_volt_GUI(self, event):
         self.focus()
         old_value = self.parent.GUIvoltage.get()
         old = str(old_value)
         new = self.V_str.get()
+        print("OV, O, N: ", old_value, old, new)
         try:
             new_value = float(new)
             new_value = int(new_value)
             if new_value < 0:
                 new_value = 0
             if (new_value - old_value) > 1000:
-                new_value = old_value+1000
+                new_value = old_value
             if new_value > self.parent.MAX_V:
                 new_value = self.parent.MAX_V
             self.parent.GUIvoltage.set(new_value)
             print("VOLT: Changing voltage to {}".format(self.parent.GUIvoltage.get()))
             self.V_str.set(str(new_value))
             self.parent.VM.set_voltage()
+            self.parent.stat_info.set("New voltage: {}V".format(new))
         except ValueError:
             print("Invalid number ... keeping old value")
             self.V_str.set(old)
+            self.parent.stat_info.set("Invalid entry. Kept old value.")
+
 
     def arrow_up(self, event):
         ind = self.SetV.index(tk.INSERT)
@@ -171,11 +177,27 @@ class Main_GUI(tk.Frame):
         print("VOLT: Changing voltage to {}".format(self.parent.GUIvoltage.get()))
         self.parent.VM.set_voltage()
 
-class MainApp_voltage(tk.Tk):
+class StatusLine(tk.Frame):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.parent = parent
+        bg1="lightgrey"
+        self.config(bg=bg1)
+        self.config(width=350)
+        self.config(height=25)
+        self.config(bd=2)
+        self.config(relief="sunken")
+        self.grid_propagate(False)
+
+        stat_info = tk.Label(self, textvariable=parent.stat_info)
+        stat_info.grid(column=0, row=0, sticky="we")
+
+class MainApp(tk.Tk):
     def __init__(self, parent=None, title="default", position="+100+100",
             FLAG=True, kq=None, chc=None):
         super().__init__()      # initializing Tk itself
         self.parent = parent
+        self.title(title)
         self.FLAG = FLAG        # True=standalone, False=as child
 
         # <HW & communication>
@@ -188,7 +210,9 @@ class MainApp_voltage(tk.Tk):
             self.comm_agent = dc.Dev_communicator(\
                     self.window, self.kq, self.chc, 3.3\
                     )
-            self.comm_agent.send_data(self.GUIvoltage.get())
+            self.cfg_file = filedialog.askopenfilename(initialdir=".",\
+                    title="Select config file",
+                    filetypes=(("cfg files","*.cfg"),("all files","*.*")))
         else:
             self.protocol("WM_DELETE_WINDOW", self.on_quit)
             # if running solo open config file
@@ -197,21 +221,7 @@ class MainApp_voltage(tk.Tk):
                     filetypes=(("cfg files","*.cfg"),("all files","*.*")))
         # </HW & communication>
 
-
         self.initialization()
-
-
-
-        self.geometry(position)   # Sets position on screen
-        self.resizable(width=False, height=False)
-        self.title(title)
-
-        # Declaring variables
-        self.GUIvoltage = tk.IntVar()
-        self.GUIvoltage.set(0)
-
-        self.MAX_V = 60000       # voltage calibration .. comes from config
-
 
         """ Building the interface """
         """ ************************************************************ """
@@ -222,15 +232,15 @@ class MainApp_voltage(tk.Tk):
         # Loads GUI interface into main window
         self.VoltmeterGUI = Main_GUI(self)
         self.VoltmeterGraph = Volt_Graph(self)
+        self.Status = StatusLine(self)
 
         self.VoltmeterGUI.grid(column=0, row=0)
         self.VoltmeterGraph.grid(column=0, row=1)
+        self.Status.grid(column=0, row=2)
 
         ## Changes dimensions of entire window
         self.canvas =tk.Canvas(self, width =300, height=200)
         """ ************************************************************ """
-
-
 
         #<RUN mainloop()>
         self.update_GUI()
@@ -238,48 +248,68 @@ class MainApp_voltage(tk.Tk):
 
     def initialization(self):
         print("VOLT: Initialization ...")
-        to_set = ['position', 'max_voltage', 'soft_limit']
-        my_dict = {
+        """ Default initial values """
+        my_init = {
                 'position':'+1+1',
                 'max_voltage':'60000',
                 'soft_limit':'20000',
+                'start_voltage':'0',
         }
 
+        # Declaring variables
+        self.GUIvoltage = tk.IntVar()
+        self.GUIvoltage.set(0)
+
+        self.stat_info = tk.StringVar()
+        self.stat_info.set("Init voltage source ...")
+        self.old_stat = "old"   # any string really ...
+        self.status_timer = 0
+
         try:
-            os.path.isfile(self.cfg_file)
+            os.path.isfile(self.cfg_file)           ## check what happens when file is not CFG ??
             self.cfg = configparser.ConfigParser()
             self.cfg.read(self.cfg_file)
             Glassman = self.cfg['Glassman']
-            for key in dict(Glassman):
-                print("KEY: ", key)
-            #print(to_set)
-            print(my_dict)
-            for k, v in zip(my_dict.keys(),my_dict.values()):
+            for k, v in my_init.items():
                 try:
-                    val_read = Glassman[k]
+                    my_init[k] = Glassman[k]
                 except KeyError:
-                    val_read = v
-                print("{} === {}".format(k, val_read))
+                    pass
         except TypeError:
-            print("Empty path to cfg file")
+            print("Empty path to cfg file! Default values are used ...")
+        except configparser.MissingSectionHeaderError:
+            print("Wrong file format! Default values are used ...")
+
+        """ asign values to variables +++++++++++++++++++++ """
+        position = my_init['position']
+        self.MAX_V = int(my_init['max_voltage'])
+        self.SOFT_V = int(my_init['soft_limit'])
+        self.GUIvoltage.set(int(my_init['start_voltage']))
+        """ +++++++++++++++++++++++++++++++++++++++++++++++ """
+
+        self.geometry(position)
+        self.resizable(width=False, height=False)
+
+        # Send initial voltage setting to the BRIDGE
+        if not self.FLAG:
+            self.comm_agent.send_data(self.GUIvoltage.get())
 
 
     def update_GUI(self):   # Communication
         update_period = 250  # time in [milliseconds]
+        """ Status line update fun """
+        if not self.stat_info.get() == self.old_stat:
+            self.status_timer += 1
+            if self.status_timer > 20:
+                self.status_timer = 0
+                self.stat_info.set("Running ...")
+                self.old_stat = self.stat_info.get()
+        """ above can go """
         if not self.FLAG:
             action = self.comm_agent.poll_queue_better()
             if action:
                 self.on_quit()
         self.after(update_period, self.update_GUI)
-
-    def win_info(self):
-        self.update()
-        #self.update()
-        ppp="Window position: +{}+{}".format(self.winfo_x(), self.winfo_y())
-        print(ppp)
-
-
-
 
     def on_quit(self):
         self.GUIvoltage.set(0)
@@ -296,8 +326,12 @@ class Voltage_source():
         except:
             print("No board detected")
             # create a fake variable that program can run
+        self.tosend = {"{:>15}".format("V_tip [V]"):"init",
+                "{:>15}".format("dummy1"):"init",
+                "{:>15}".format("dummy2"):"init",
+                "{:>15}".format("dummy3"):"init"}
 
-    def set_voltage(self):
+        def set_voltage(self):     # need to add another parameter: High_volt
         High_voltage = self.parent.GUIvoltage.get()
         DAC_voltage = High_voltage/self.parent.MAX_V*10
         ivolt = int( 4096/10*DAC_voltage)
@@ -310,8 +344,7 @@ class Voltage_source():
         return 0
 
 def main():
-    DEBUG = True  # True / False
-    root_voltage = MainApp_voltage(
+    root = MainApp(
             parent=None,
             title="Voltage (PID: {})".format(os.getpid()),
             position="+700+100",
@@ -321,8 +354,7 @@ def main():
             )
 
 def my_dev(kill_queue, child_comm):
-    DEBUG = True  # True / False
-    root_voltage = MainApp_voltage(
+    root = MainApp(
         parent=None,
         title="CHILD: VOltage (PID: {})".format(os.getpid()),
         position="+700+100",
