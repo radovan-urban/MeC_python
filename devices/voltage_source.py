@@ -100,6 +100,7 @@ class Main_GUI(tk.Frame):
         self.SetV.bind('<Return>', self.set_volt_GUI)
         self.SetV.bind('<Key Up>', self.arrow_up)
         self.SetV.bind('<Key Down>', self.arrow_down)
+        #self.SetV.bind('<Button-1>', self.left_click)
 
         self.SetS = tk.Entry(self, text="1001001", width=15)
 
@@ -126,10 +127,8 @@ class Main_GUI(tk.Frame):
             if new_value > self.parent.MAX_V:
                 new_value = self.parent.MAX_V
             self.parent.GUIvoltage.set(new_value)
-            print("VOLT: Changing voltage to {}".format(self.parent.GUIvoltage.get()))
             self.V_str.set(str(new_value))
-            self.parent.VM.set_voltage()
-            self.parent.stat_info.set("New voltage: {}V".format(new))
+            self.parent.VM.set_voltage( self.parent.GUIvoltage.get() )
         except ValueError:
             print("Invalid number ... keeping old value")
             self.V_str.set(old)
@@ -154,8 +153,7 @@ class Main_GUI(tk.Frame):
                 self.focus()
 
             self.parent.GUIvoltage.set(number)
-            print("VOLT: Changing voltage to {}".format(self.parent.GUIvoltage.get()))
-            self.parent.VM.set_voltage()
+            self.parent.VM.set_voltage( self.parent.GUIvoltage.get() )
 
     def arrow_down(self, event):
         ind = self.SetV.index(tk.INSERT)
@@ -174,8 +172,10 @@ class Main_GUI(tk.Frame):
             self.focus()     # relinquish focus
 
         self.parent.GUIvoltage.set(number)
-        print("VOLT: Changing voltage to {}".format(self.parent.GUIvoltage.get()))
-        self.parent.VM.set_voltage()
+        self.parent.VM.set_voltage( self.parent.GUIvoltage.get() )
+
+    def left_click(self, event):
+        self.focus()            # release focus
 
 class StatusLine(tk.Frame):
     def __init__(self, parent=None):
@@ -290,10 +290,8 @@ class MainApp(tk.Tk):
         self.geometry(position)
         self.resizable(width=False, height=False)
 
-        # Send initial voltage setting to the BRIDGE
-        if not self.FLAG:
-            self.comm_agent.send_data(self.GUIvoltage.get())
-
+        # sending should be done from there.
+        self.VM.set_voltage( self.GUIvoltage.get() )
 
     def update_GUI(self):   # Communication
         update_period = 250  # time in [milliseconds]
@@ -314,7 +312,7 @@ class MainApp(tk.Tk):
     def on_quit(self):
         self.GUIvoltage.set(0)
         print("VOLT: Setting voltage to 0 and closing ...")
-        self.VM.set_voltage()
+        self.VM.set_voltage( self.GUIvoltage.get() )
         self.destroy()
 
 class Voltage_source():
@@ -326,21 +324,22 @@ class Voltage_source():
         except:
             print("No board detected")
             # create a fake variable that program can run
-        self.tosend = {"{:>15}".format("V_tip [V]"):"init",
-                "{:>15}".format("dummy1"):"init",
-                "{:>15}".format("dummy2"):"init",
-                "{:>15}".format("dummy3"):"init"}
+        self.tosend = {"{}".format("V_tip [V]"):"init",
+                "{}".format("dummy3"):"init"}
 
-    def set_voltage(self):     # need to add another parameter: High_volt
+    def set_voltage(self, High_voltage):     # need to add another parameter: High_volt
         High_voltage = self.parent.GUIvoltage.get()
         DAC_voltage = High_voltage/self.parent.MAX_V*10
         ivolt = int( 4096/10*DAC_voltage)
         print("VOLT: HiV: {0}V | dacV: {1}V | dacLevel: {2}"\
                 .format(High_voltage, DAC_voltage, ivolt))
         self.dac.set_voltage(ivolt)
+        self.parent.stat_info.set("New voltage: {}V".format(High_voltage))
         """ send set voltage values to BRIDGE """
+        self.tosend['V_tip [V]'] = str(High_voltage)
         if not self.parent.FLAG:
-            self.parent.comm_agent.send_data(High_voltage)
+            #self.parent.comm_agent.send_data(High_voltage)
+            self.parent.comm_agent.send_data(self.tosend)
         return 0
 
 def main():

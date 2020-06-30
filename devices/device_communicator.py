@@ -65,7 +65,8 @@ class Main_Comm:
     def Pull_Data(self):
         for i, p_conn in enumerate(self.p_conns):
             while p_conn.poll():
-                self.results[i] = round(p_conn.recv(), 3)
+                #self.results[i] = round(p_conn.recv(), 3)
+                self.results[i] = p_conn.recv()
         return str(self.results)
 
     def Stop_Devices(self):
