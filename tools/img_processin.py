@@ -6,16 +6,14 @@ def grayConversion(image):
     gray_img = grayValue.astype(np.uint8)
     return gray_img
 
-orig = cv2.imread(r'beach.jpg', 1)
+orig = cv2.imread(r'/home/pi/Documents/python/MeC.git/tools/beach.png', 1)
 #orig = cv2.imread('beach.png')
 cv2.imshow("Original", orig)
 
-"""
 g = grayConversion(orig)
 
 cv2.imshow("Original", orig)
 cv2.imshow("GrayScale", g)
-"""
 
 cv2.waitKey(0)
 cv2.destroyAllWindows()

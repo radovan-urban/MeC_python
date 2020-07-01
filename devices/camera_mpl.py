@@ -27,9 +27,16 @@ import random
 import os
 import numpy as np
 
+from matplotlib.backends.backend_tkagg import (
+    FigureCanvasTkAgg, NavigationToolbar2Tk)
+# Implement the default Matplotlib key bindings.
+from matplotlib.backend_bases import key_press_handler
+from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
+
 import device_communicator as dc
 
-from skimage.feature import blob_dog
+
 
 
 class MenuBar(tk.Menu):
@@ -68,13 +75,23 @@ class Frame_Image(tk.Frame):
         self.parent = parent
 
         bg1 = "green"
+        first_image = np.zeros((480,640))
+        self.fig = Figure(figsize=(5, 4), dpi=100)
+        self.ax = self.fig.add_subplot(111)
+        #self.ax.imshow(self.img2D)             ### keep for completness
+        self.img_obj = self.ax.imshow(first_image, vmin=0, vmax=500, cmap='Greys_r')
 
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self)
+        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+
+        """
         self.config(bg=bg1)
         self.config(width=650)
         self.config(height=500)
         self.config(bd=2)
         self.config(relief="ridge")
         self.grid_propagate(False)     # prevents resizing
+        """
 
 class Frame_RightNav(tk.Frame):
     def __init__(self, parent):
@@ -143,7 +160,7 @@ class Frame_RightNav(tk.Frame):
             print("Cannot convert to integer!")
             self.fr_string.set(old_value)
         # init video capture
-        #self.parent.capture_device.init_averaging()
+        self.parent.capture_device.init_averaging()
 
 
 
@@ -182,8 +199,10 @@ class MainApp_camera(tk.Tk):
         self.ImageFrame.grid(column=0, row=0)
         self.RightNav.grid(column=1, row=0, sticky="ns")
 
+        """
         self.canvas = tk.Canvas(self.ImageFrame, width=640, height=480)
         self.canvas.pack(side="left", padx=10, pady=10)
+        """
 
 
         # <HW & COM>
@@ -211,9 +230,24 @@ class MainApp_camera(tk.Tk):
             self.frame_array = frame    # create class-wide array from cam
             if self.chkValue.get():
                 frame = aframe
-            self.image = PIL.Image.fromarray(frame * self.frames_to_avg.get())   # this can be scalled
+            #print("MPL: type: {} | shape: {}".format(type(frame), frame.shape))
+
+            """
+            self.ImageFrame.ax.clear()           # f. or ax.
+            self.ImageFrame.ax.imshow(frame)     # f. or ax.
+            self.ImageFrame.canvas.draw()
+            """
+
+
+            self.ImageFrame.img_obj.set_data(frame)
+            self.ImageFrame.canvas.draw()
+
+
+            """
+            self.image = PIL.Image.fromarray(frame)   # this can be scalled
             self.photo = PIL.ImageTk.PhotoImage(self.image)
             self.canvas.create_image(0, 0, image = self.photo, anchor = tk.NW)
+            """
         # <COMMUNICATOR>
         if self.FLAG:
             # <running stand-alone>
@@ -238,8 +272,6 @@ class MainApp_camera(tk.Tk):
         """
         print("Number of frame so far: {}".\
                 format(self.capture_device.frame_counter))
-        print("Reseting frame_counter ....")
-        self.capture_device.frame_counter = 0
         print("Averaging variable: {}".format(self.chkValue.get()))
         """
         # conver back to uint8 and save
@@ -257,7 +289,7 @@ class VideoCapture():
         #print("VIDEO: Num of averages: ", parent.frames_to_avg.get())
         self.parent = parent
         self.cap = cv2.VideoCapture(video_source)
-        #self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)    # avoid lag
+        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)    # avoid lag
         if not self.cap.isOpened():
             raise ValueError("Unable to open video ", video_source)
         self.picx = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))

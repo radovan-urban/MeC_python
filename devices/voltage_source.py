@@ -15,10 +15,14 @@ Authors: R. Urban, J. McMonagle
 import tkinter as tk
 from tkinter import filedialog
 import time
-from random import gauss
-import cv2
 import sys
 import os
+
+from matplotlib.backends.backend_tkagg import (
+    FigureCanvasTkAgg, NavigationToolbar2Tk)
+# Implement the default Matplotlib key bindings.
+from matplotlib.backend_bases import key_press_handler
+from matplotlib.figure import Figure
 
 import configparser
 
@@ -64,12 +68,39 @@ class Volt_Graph(tk.Frame):
         super().__init__(parent)
         self.parent = parent
 
+        _width, _height = 350, 150
+
         self.config(bg="red")
-        self.config(width=350)
-        self.config(height=150)
+        self.config(width=_width)
+        self.config(height=_height)
         self.config(bd=2)
         self.config(relief="ridge")
         self.grid_propagate(False)
+
+        _dpi = 72
+        _fig_x = _width/_dpi
+        _fig_y = _height/_dpi
+
+        fig_frame = Figure(figsize=(_fig_x,_fig_y), dpi=_dpi)
+        ax = fig_frame.add_subplot(111)
+        _x = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+        _y = [0, 1, 4, 9, 16, 25, 36, 49, 64]
+        ax.scatter(_x, _y)
+
+        canvas = FigureCanvasTkAgg(fig_frame, self)
+        canvas.draw()       # not sure if this is needed
+        canvas.get_tk_widget().grid(column=0, row=0, sticky='news')
+
+        self.hist_size = 100    # number of data points
+
+        """ Skip toolbar for now ... frame is too small """
+        """
+        toolbar = NavigationToolbar2Tk(canvas, self)
+        toolbar.update()
+        canvas.get_tk_widget().pack(side=tkinter.TOP, fill=tkinter.BOTH, expand=1)
+        """
+
+
 
 class Main_GUI(tk.Frame):
     def __init__(self, parent=None):
@@ -237,9 +268,6 @@ class MainApp(tk.Tk):
         self.VoltmeterGUI.grid(column=0, row=0)
         self.VoltmeterGraph.grid(column=0, row=1)
         self.Status.grid(column=0, row=2)
-
-        ## Changes dimensions of entire window
-        self.canvas =tk.Canvas(self, width =300, height=200)
         """ ************************************************************ """
 
         #<RUN mainloop()>
@@ -256,6 +284,9 @@ class MainApp(tk.Tk):
                 'start_voltage':'0',
         }
 
+        # Timing varaibles
+        self.update_period = 250        # time in miliseconds
+
         # Declaring variables
         self.GUIvoltage = tk.IntVar()
         self.GUIvoltage.set(0)
@@ -264,6 +295,8 @@ class MainApp(tk.Tk):
         self.stat_info.set("Init voltage source ...")
         self.old_stat = "old"   # any string really ...
         self.status_timer = 0
+        status_disp_time = 3    # time in seconds
+        self.status_disp_cycles = status_disp_time*1000/self.update_period
 
         try:
             os.path.isfile(self.cfg_file)           ## check what happens when file is not CFG ??
@@ -294,11 +327,10 @@ class MainApp(tk.Tk):
         self.VM.set_voltage( self.GUIvoltage.get() )
 
     def update_GUI(self):   # Communication
-        update_period = 250  # time in [milliseconds]
         """ Status line update fun """
         if not self.stat_info.get() == self.old_stat:
             self.status_timer += 1
-            if self.status_timer > 20:
+            if self.status_timer > self.status_disp_cycles:
                 self.status_timer = 0
                 self.stat_info.set("Running ...")
                 self.old_stat = self.stat_info.get()
@@ -307,7 +339,7 @@ class MainApp(tk.Tk):
             action = self.comm_agent.poll_queue_better()
             if action:
                 self.on_quit()
-        self.after(update_period, self.update_GUI)
+        self.after(self.update_period, self.update_GUI)
 
     def on_quit(self):
         self.GUIvoltage.set(0)
@@ -332,7 +364,7 @@ class Voltage_source():
         DAC_voltage = High_voltage/self.parent.MAX_V*10
         ivolt = int( 4096/10*DAC_voltage)
         print("VOLT: HiV: {0}V | dacV: {1}V | dacLevel: {2}"\
-                .format(High_voltage, DAC_voltage, ivolt))
+                .format(High_voltage, round(DAC_voltage, 2), ivolt))
         self.dac.set_voltage(ivolt)
         self.parent.stat_info.set("New voltage: {}V".format(High_voltage))
         """ send set voltage values to BRIDGE """
