@@ -37,6 +37,81 @@ try:
 except ModuleNotFoundError:
     print ("No hardware present ... simulation mode ...")
 
+class VoltHistory(tk.Toplevel):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.parent = parent
+        self.title("Glassman: V history")
+        self.protocol("WM_DELETE_WINDOW", self.withdraw)        ## minimize
+
+        """ Declare local colors & varaibles """
+        _bg1 = "gray30"
+        _bg2 = "SlateGray4"
+        _fg1 = 'goldenrod'
+        _sp = 2                             # padding value
+        _W, _H_t, _H_b = 500, 100, 300      # major frame geometry
+        _W_entry = 10                       # width of ENTRY box
+        _dpi = 72
+        _fig_x = _W/_dpi                    # evaluating graph size (W)
+        _fig_y = _H_b/_dpi                  # evaluating graph size (H)
+
+        """ creat GUI frame first """
+        Top_frame = tk.Frame(self, height=_H_t, width=_W, bg=_bg1,
+                bd=_sp, relief="ridge")
+
+        Bot_frame = tk.Frame(self, height=_H_b, width=_W, bg=_bg2,
+                bd=_sp, relief="ridge")
+
+        """ place/organize main frames """
+        Top_frame.grid(column=0, row=0, sticky="news", padx=_sp, pady=_sp)
+        Bot_frame.grid(column=0, row=1, sticky="news", padx=_sp, pady=_sp)
+        Top_frame.grid_propagate(False)
+        Bot_frame.grid_propagate(False)
+
+        # Top frame
+        L1 = tk.Label(Top_frame, text="HIstory length [points]: ",
+                bg=_bg1, fg=_fg1)
+        E1 = tk.Entry(Top_frame, width=_W_entry)
+        L2 = tk.Label(Top_frame, text="Recording interval [seconds]: ",
+                bg=_bg1, fg=_fg1)
+        E2 = tk.Entry(Top_frame, width=_W_entry)
+        B1 = tk.Button(Top_frame, text="Reset graph",
+                command=lambda: None)
+
+        Top_frame.columnconfigure(4, weight=1)
+        Top_frame.rowconfigure(8, weight=1)
+
+        L1.grid(column=1, row=2, pady=_sp, sticky='w')
+        L2.grid(column=1, row=4, pady=_sp, sticky='w')
+        E1.grid(column=3, row=2, pady=_sp, sticky='e')
+        E2.grid(column=3, row=4, pady=_sp, sticky='e')
+        B1.grid(column=4, row=8, padx=_sp, pady=_sp, sticky='e')
+
+        # Bottom frame
+        fig_frame = Figure(figsize=(_fig_x,_fig_y), dpi=_dpi)
+        ax = fig_frame.add_subplot(111)
+        _x = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+        _y = [0, 1, 4, 9, 16, 25, 36, 49, 64]
+        ax.scatter(_x, _y)
+        ax.set_xlabel("Elapsed time")
+        ax.set_ylabel("Voltage [kV]")
+
+        canvas = FigureCanvasTkAgg(fig_frame, Bot_frame)
+        canvas.draw()       # not sure if this is needed
+        canvas.get_tk_widget().grid(column=0, row=0, sticky='news')
+
+        self.hist_size = 100    # number of data points
+
+        """ Skip toolbar for now ... frame is too small """
+        """
+        toolbar = NavigationToolbar2Tk(canvas, self)
+        toolbar.update()
+        canvas.get_tk_widget().pack(side=tkinter.TOP, fill=tkinter.BOTH, expand=1)
+        """
+
+        # minimize by default
+        self.withdraw()
+
 class MenuBar(tk.Menu):
     def __init__(self, parent=None):
         #tk.Menu.__init__(self, parent)
@@ -52,7 +127,8 @@ class MenuBar(tk.Menu):
 
         deviceMenu = tk.Menu(self, tearoff=False)
         self.add_cascade(label="Voltage", underline=0, menu=deviceMenu)
-        deviceMenu.add_command(label="Exposure", command=lambda: None)
+        deviceMenu.add_command(label="Voltage history", \
+                command=lambda: self.parent.Hist_win.deiconify())
         deviceMenu.add_command(label="Averaging", command=lambda: None)
         deviceMenu.add_command(label="Win position", command=\
                 lambda: self.parent.stat_info.set("ID: {} | Geometry: {}"\
@@ -63,83 +139,45 @@ class MenuBar(tk.Menu):
         helpMenu.add_command(label="About", command=lambda: None)
         helpMenu.add_command(label="Help", command=lambda: None)
 
-class Volt_Graph(tk.Frame):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.parent = parent
-
-        _width, _height = 350, 150
-
-        self.config(bg="red")
-        self.config(width=_width)
-        self.config(height=_height)
-        self.config(bd=2)
-        self.config(relief="ridge")
-        self.grid_propagate(False)
-
-        _dpi = 72
-        _fig_x = _width/_dpi
-        _fig_y = _height/_dpi
-
-        fig_frame = Figure(figsize=(_fig_x,_fig_y), dpi=_dpi)
-        ax = fig_frame.add_subplot(111)
-        _x = [0, 1, 2, 3, 4, 5, 6, 7, 8]
-        _y = [0, 1, 4, 9, 16, 25, 36, 49, 64]
-        ax.scatter(_x, _y)
-
-        canvas = FigureCanvasTkAgg(fig_frame, self)
-        canvas.draw()       # not sure if this is needed
-        canvas.get_tk_widget().grid(column=0, row=0, sticky='news')
-
-        self.hist_size = 100    # number of data points
-
-        """ Skip toolbar for now ... frame is too small """
-        """
-        toolbar = NavigationToolbar2Tk(canvas, self)
-        toolbar.update()
-        canvas.get_tk_widget().pack(side=tkinter.TOP, fill=tkinter.BOTH, expand=1)
-        """
-
-
-
 class Main_GUI(tk.Frame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.parent = parent
-        bg1="darkgrey"
-        self.config(bg=bg1)
+
+        _bg1 = 'DarkSlateGray4'
+        _bd, rc, cc = 2, 5, 3
+
+        self.config(bg=_bg1)
         self.config(width=350)
-        self.config(height=55)
-        self.config(bd=2)
+        self.config(height=60)
+        self.config(bd=_bd)
         self.config(relief="ridge")
         self.grid_propagate(False)
 
         ## Initalizing Grid
-        rc, cc = 5, 3
         self.columnconfigure(0, weight=1, pad=cc)
         self.columnconfigure(1, weight=1, pad=cc)
         self.columnconfigure(2, weight=2, pad=cc)
-        self.rowconfigure(1, pad=rc)
 
         # Initalizing grid labels
-        Vlabel = tk.Label(self, text="High voltage [V]: ", bg=bg1)
-        Slabel = tk.Label(self, text="Soft voltage limit [V]: ", bg=bg1)
-       # Voltage Control
+        Vlabel = tk.Label(self, text="High voltage [V]: ", bg=_bg1)
+        Slabel = tk.Label(self, text="Soft voltage limit [V]: ", bg=_bg1)
+        # Voltage Control
         self.V_str = tk.StringVar()
         self.V_str.set(parent.GUIvoltage.get())
-        self.SetV = tk.Entry(self, textvariable = self.V_str, width=15)
+        self.SetV = tk.Entry(self, textvariable = self.V_str, width=10)
         self.SetV.bind('<Return>', self.set_volt_GUI)
         self.SetV.bind('<Key Up>', self.arrow_up)
         self.SetV.bind('<Key Down>', self.arrow_down)
         #self.SetV.bind('<Button-1>', self.left_click)
 
-        self.SetS = tk.Entry(self, text="1001001", width=15)
+        self.SetS = tk.Entry(self, text="1001001", width=10)
 
         # Placing Labels
         Vlabel.grid(column=0, row=1, sticky="w")
         Slabel.grid(column=0, row=2, sticky="w")
-        self.SetV.grid(column=3, row=1, sticky="e")
-        self.SetS.grid(column=3, row=2, sticky="e")
+        self.SetV.grid(column=3, row=1, padx=_bd, pady=_bd, sticky="e")
+        self.SetS.grid(column=3, row=2, padx=_bd, pady=_bd, sticky="e")
 
 
     def set_volt_GUI(self, event):
@@ -208,6 +246,22 @@ class Main_GUI(tk.Frame):
     def left_click(self, event):
         self.focus()            # release focus
 
+class Volt_Graph(tk.Frame):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.parent = parent
+
+        _width, _height = 350, 100
+        _bg1 = 'DarkSlateGray'
+        _bg2 = 'DarkSeaGreen4'
+
+        self.config(bg=_bg1)
+        self.config(width=_width)
+        self.config(height=_height)
+        self.config(bd=2)
+        self.config(relief="ridge")
+        self.grid_propagate(False)
+
 class StatusLine(tk.Frame):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -265,9 +319,19 @@ class MainApp(tk.Tk):
         self.VoltmeterGraph = Volt_Graph(self)
         self.Status = StatusLine(self)
 
-        self.VoltmeterGUI.grid(column=0, row=0)
-        self.VoltmeterGraph.grid(column=0, row=1)
-        self.Status.grid(column=0, row=2)
+        # Packing
+        self.VoltmeterGUI.grid(column=0, row=0, padx=1, pady=1)
+        self.VoltmeterGraph.grid(column=0, row=1, padx=1, pady=1)
+        self.Status.grid(column=0, row=2, padx=1, pady=1)
+
+        """ Initializing a TopLevel window """
+        self.Hist_win = VoltHistory(self)
+        """ ************************************************************ """
+        """ Interface is DONE! """
+
+
+
+
         """ ************************************************************ """
 
         #<RUN mainloop()>
