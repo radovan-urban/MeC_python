@@ -74,34 +74,63 @@ class Frame_Image(tk.Frame):
         super().__init__(parent)
         self.parent = parent
 
-        bg1 = "green"
-        first_image = np.zeros((480,640))
-        self.fig = Figure(figsize=(5, 4), dpi=100)
-        self.ax = self.fig.add_subplot(111)
-        #self.ax.imshow(self.img2D)             ### keep for completness
-        self.img_obj = self.ax.imshow(first_image, vmin=0, vmax=500, cmap='Greys_r')
+        _bg1 = "midnight blue"
+        _fg1 = "yellow"
 
-        self.canvas = FigureCanvasTkAgg(self.fig, master=self)
-        self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
-
-        """
-        self.config(bg=bg1)
-        self.config(width=650)
+        self.config(bg=_bg1)
+        self.config(width=600)
         self.config(height=500)
         self.config(bd=2)
         self.config(relief="ridge")
         self.grid_propagate(False)     # prevents resizing
-        """
+
+        self._vmax = None
+        first_image = np.zeros((480,640))
+
+        # Create widgets
+        self.sld = tk.Scale(self, from_=0, to=1000, orient="horizontal",\
+                resolution=1, label="Exposure level (white point):")
+        self.sld_max_label = tk.Label(self, text="Max white level: ",
+                bg=_bg1, fg=_fg1)
+        self.sld_max = tk.Entry(self, width=10)
+
+        self.fig = Figure(figsize=(5, 4), dpi=100)
+        self.ax = self.fig.add_subplot(111, frameon=False)
+        #self.img_obj = self.ax.imshow(first_image, vmin=0, vmax=None) #, cmap='Greys_r')
+        self.img_obj = self.ax.matshow(first_image, vmin=0, vmax=None) #, cmap='Greys_r')
+        self.ax.set_axis_off()
+        #self.fig.tight_layout()
+        self.fig.subplots_adjust(left=0, bottom=0, right=1, top=1)
+
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self)
+
+        # create layout
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(5, weight=1)
+
+        self.sld_max_label.grid(column=0, row=1, sticky='e')
+        self.sld_max.grid(column=1, row=1, pady=3, padx=3, sticky='we')
+        self.sld.grid(column=0, columnspan=2, row=2, sticky='we')
+        self.canvas.get_tk_widget().grid(column=0, columnspan=2, row=5, sticky='sew')
+
+        # bindings
+        self.sld.bind('<ButtonRelease-1>', self.on_release)
+
+
+    def on_release(self, event):
+        self._vmax = self.sld.get()
+        print("Value: {} and position: {}:{}".format(self._vmax, event.x, event.y))
 
 class Frame_RightNav(tk.Frame):
     def __init__(self, parent):
         tk.Frame.__init__(self, parent)
         self.parent = parent
 
-        bg1 = "darkgrey"
+        _bg1 = "gray20"
+        _fg1 = "gold"
         wid = 200
 
-        self.config(bg=bg1)
+        self.config(bg=_bg1)
         self.config(width=wid)
         self.config(height=500)
         self.config(bd=2)
@@ -109,15 +138,15 @@ class Frame_RightNav(tk.Frame):
         self.grid_propagate(False)     # prevents resizing
 
         """ Creating all widgets """
-        L_name = tk.Label(self, text="Camera settings", bg=bg1)
+        L_name = tk.Label(self, text="Camera settings", bg=_bg1, fg=_fg1)
         F0 = tk.Frame(self, height=3, width=wid/2+20, bg="black")
         F1 = tk.Frame(self, height=3, width=wid/2-20, bg="white")
         B_temp = tk.Button(self, text="Array info", command=parent.verify_image_array)
-        L_avg = tk.Label(self, text="Averaging", bg=bg1)
-        B_avg = tk.Checkbutton(self, text="on/off", bg=bg1, var=parent.chkValue)
-        L_frn = tk.Label(self, text="frame rate", bg=bg1)
-        L_frv = tk.Label(self, textvariable=parent.frame_rate)
-        L_fran = tk.Label(self, text="frames2avg", bg=bg1)
+        L_avg = tk.Label(self, text="Averaging", bg=_bg1, fg=_fg1)
+        B_avg = tk.Checkbutton(self, text="on/off", bg=_bg1, var=parent.chkValue)
+        L_frn = tk.Label(self, text="frame rate", bg=_bg1, fg=_fg1)
+        L_frv = tk.Label(self, textvariable=parent.frame_rate, width=5)
+        L_fran = tk.Label(self, text="frames2avg", bg=_bg1, fg=_fg1)
         self.fr_string = tk.StringVar()
         self.fr_string.set(parent.frames_to_avg.get())
         L_frav = tk.Entry(self, textvariable=self.fr_string, width=5)
@@ -230,18 +259,19 @@ class MainApp_camera(tk.Tk):
             self.frame_array = frame    # create class-wide array from cam
             if self.chkValue.get():
                 frame = aframe
-            #print("MPL: type: {} | shape: {}".format(type(frame), frame.shape))
 
-            """
-            self.ImageFrame.ax.clear()           # f. or ax.
-            self.ImageFrame.ax.imshow(frame)     # f. or ax.
+            _vmax = self.ImageFrame._vmax
+            self.ImageFrame.ax.cla()           # .cla or .clear`
+            #self.ImageFrame.ax.imshow(frame, vmin=0, vmax=_vmax)     # f. or ax.
+            self.ImageFrame.ax.matshow(frame, vmin=0, vmax=_vmax)     # f. or ax.
+            self.ImageFrame.ax.set_axis_off()
             self.ImageFrame.canvas.draw()
+
+
             """
-
-
             self.ImageFrame.img_obj.set_data(frame)
             self.ImageFrame.canvas.draw()
-
+            """
 
             """
             self.image = PIL.Image.fromarray(frame)   # this can be scalled
@@ -289,19 +319,19 @@ class VideoCapture():
         #print("VIDEO: Num of averages: ", parent.frames_to_avg.get())
         self.parent = parent
         self.cap = cv2.VideoCapture(video_source)
-        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)    # avoid lag
+        #self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)    # avoid lag. does not work
         if not self.cap.isOpened():
             raise ValueError("Unable to open video ", video_source)
         self.picx = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.picy = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        print("VIDEO: image size: {}x{}".format(self.picx, self.picy))
+        #print("VIDEO: image size: {}x{}".format(self.picx, self.picy))
         answer, frame = self.cap.read()
-        print("VIDEO: what type is FRAME: ", type(frame))
+        #print("VIDEO: what type is FRAME: ", type(frame))
         self.init_averaging()
 
     def init_averaging(self):
         self.f_num = self.parent.frames_to_avg.get()
-        print("VIDEO: Init averaging ... frames to average: ", self.f_num)
+        #print("VIDEO: Init averaging ... frames to average: ", self.f_num)
         # Setting up a frame counter
         self.frame_counter = 0
         self.f_old = 0
@@ -333,9 +363,10 @@ class VideoCapture():
                 return self.frate, answer, None, None
         else:
             return None, False, None, None
-
+    """
     def averge_image(self, frame):
         img_np = np.array(cv2.ctvColor(frame, cv2.COLOR_BGR2GRAY), np.float)
+    """
 
     def release_video(self):
         if self.cap.isOpened():
