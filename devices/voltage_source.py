@@ -117,6 +117,9 @@ class MenuBar(tk.Menu):
         #tk.Menu.__init__(self, parent)
         super().__init__(parent)
         self.parent = parent
+
+        #self.config(bg = 'PowderBlue')
+
         fileMenu = tk.Menu(self, tearoff=False)
         self.add_cascade(label="File", underline=0, menu=fileMenu)
         #fileMenu.add_command(label="Exit", underline=1, command=lambda: ConfirmQuit(parent))
@@ -185,7 +188,7 @@ class Main_GUI(tk.Frame):
         old_value = self.parent.GUIvoltage.get()
         old = str(old_value)
         new = self.V_str.get()
-        print("OV, O, N: ", old_value, old, new)
+        #print("OV, O, N: ", old_value, old, new)
         try:
             new_value = float(new)
             new_value = int(new_value)
@@ -210,8 +213,8 @@ class Main_GUI(tk.Frame):
         multiplier = 10**(lenstr-ind)
         if multiplier <= 1000:
             number = int(self.V_str.get()) + multiplier
-            print("Index: {} | Multiplier: {} | New number: {}"\
-                    .format(ind, multiplier, number))
+            #print("Index: {} | Multiplier: {} | New number: {}"\
+            #        .format(ind, multiplier, number))
             if number < self.parent.MAX_V:
                 self.V_str.set(str(number))
                 if len(str(number)) > lenstr:
@@ -229,8 +232,8 @@ class Main_GUI(tk.Frame):
         lenstr = len(self.SetV.get())
         multiplier = 10**(lenstr-ind)
         number = int(self.V_str.get()) - multiplier
-        print("Index: {} | Multiplier: {} | New number: {}"\
-                .format(ind, multiplier, number))
+        #print("Index: {} | Multiplier: {} | New number: {}"\
+        #        .format(ind, multiplier, number))
         if number > 0:
             self.V_str.set(str(number))
             if len(str(number)) < lenstr:
@@ -266,15 +269,17 @@ class StatusLine(tk.Frame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.parent = parent
-        bg1="lightgrey"
-        self.config(bg=bg1)
+
+        _bg1 = 'PowderBlue'
+
+        self.config(bg = _bg1)
         self.config(width=350)
         self.config(height=25)
         self.config(bd=2)
         self.config(relief="sunken")
         self.grid_propagate(False)
 
-        stat_info = tk.Label(self, textvariable=parent.stat_info)
+        stat_info = tk.Label(self, textvariable=parent.stat_info, bg=_bg1)
         stat_info.grid(column=0, row=0, sticky="we")
 
 class MainApp(tk.Tk):
@@ -302,7 +307,7 @@ class MainApp(tk.Tk):
             self.protocol("WM_DELETE_WINDOW", self.on_quit)
             # if running solo open config file
             self.cfg_file = filedialog.askopenfilename(initialdir=".",\
-                    title="Select config file",
+                    title="Select config file", initialfile="config.cfg",
                     filetypes=(("cfg files","*.cfg"),("all files","*.*")))
         # </HW & communication>
 
@@ -407,8 +412,9 @@ class MainApp(tk.Tk):
 
     def on_quit(self):
         self.GUIvoltage.set(0)
-        print("VOLT: Setting voltage to 0 and closing ...")
         self.VM.set_voltage( self.GUIvoltage.get() )
+        print("VOLT: Closing the application ... HAL out _/\__/\___/\__________")
+
         self.destroy()
 
 class Voltage_source():
