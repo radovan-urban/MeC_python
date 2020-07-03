@@ -229,7 +229,7 @@ class MainApp_camera(tk.Tk):
             if action:
                 self.on_quit()
             # sending data to BRIDGE should be in DEVICE part
-            self.comm_agent.send_data(-random.uniform(0, 10))
+            self.comm_agent.send_data(str(round(-random.uniform(0, 10), 2)))
             #### Image Saving
             saveaction = self.comm_agent.camera_save_queue()
             if saveaction == False:

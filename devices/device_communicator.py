@@ -19,7 +19,8 @@ except ModuleNotFoundError as err:
 class Read_Config:
     def __init__(self):
         #self.to_run = []
-        self.to_run = ['simple','camera']  # Removed voltage_source due to dict error
+        self.to_run = ['simple','camera', 'voltage_source']
+        # Removed voltage_source due to dict error
         """
         There will be more stuff here:
         * specifying a config file
@@ -66,7 +67,7 @@ class Main_Comm:
     def Pull_Data(self):
         for i, p_conn in enumerate(self.p_conns):
             while p_conn.poll():
-                self.results[i] = round(p_conn.recv(), 3)
+                self.results[i] = p_conn.recv()
         return str(self.results)
 
     def Camera_Saving(self, reftime):

@@ -42,9 +42,9 @@ class MainApp(tk.Tk):
 
 
     def update_GUI(self):
-        data_to_send = random.uniform(0, 10)
+        data_to_send = str(round(random.uniform(0, 10), 2))
         self.comm_agent.send_data(data_to_send)
-        self.lbl['text'] = str(round(data_to_send, 2))
+        self.lbl['text'] = data_to_send
         self.delay = 500
         if not self.FLAG:
             self.comm_agent.poll_queue()

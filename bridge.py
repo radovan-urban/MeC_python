@@ -105,7 +105,7 @@ class ShowVariables(tk.Toplevel):
         self.TF_wdv = tk.Label(self.Top_frame, text=parent.Directory)
         self.TF_rin = tk.Label(self.Top_frame, text="Record interval [s]", bg=bg1)
         #self.TF_riv = tk.Label(self.Top_frame, text=str(parent.Record_interval.get()))
-        self.TF_riv = tk.Label(self.Top_frame, textvariable=parent.Recording_interval)
+        self.TF_riv = tk.Label(self.Top_frame, width=10, textvariable=parent.Recording_interval)
 
         self.Top_frame.columnconfigure(0, pad=sp, weight=1)
         self.Top_frame.columnconfigure(1, pad=sp, weight=1)
