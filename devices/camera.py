@@ -29,7 +29,7 @@ import numpy as np
 
 import device_communicator as dc
 
-from skimage.feature import blob_dog
+
 
 
 class MenuBar(tk.Menu):
@@ -143,14 +143,14 @@ class Frame_RightNav(tk.Frame):
             print("Cannot convert to integer!")
             self.fr_string.set(old_value)
         # init video capture
-        #self.parent.capture_device.init_averaging()
+        self.parent.capture_device.init_averaging()
 
 
 
 
 class MainApp_camera(tk.Tk):
     def __init__(self, parent=None, title="default",
-            FLAG=False, kq=None, chc=None):
+            FLAG=False, kq=None, chc=None, sq=None):   # Adding save queue
         super().__init__()
         self.parent = parent
         self.FLAG = FLAG
@@ -167,6 +167,10 @@ class MainApp_camera(tk.Tk):
 
         self.frames_to_avg = tk.IntVar()
         self.frames_to_avg.set(5)
+
+        self.record = False
+        self.imagename = "undefined.png"
+        self.savetime = time.time() * 2
 
         """ Building the interface """
         """ ************************************************************ """
@@ -193,8 +197,9 @@ class MainApp_camera(tk.Tk):
             self.window = self
             self.kq = kq
             self.chc = chc
+            self.sq = sq
             self.comm_agent = dc.Dev_communicator(\
-                    self.window, self.kq, self.chc, 1.1)
+                    self.window, self.kq, self.chc, 1.1, self.sq)
         else:
             self.protocol("WM_DELETE_WINDOW", self.on_quit)
         # </HW & COM>
@@ -211,7 +216,7 @@ class MainApp_camera(tk.Tk):
             self.frame_array = frame    # create class-wide array from cam
             if self.chkValue.get():
                 frame = aframe
-            self.image = PIL.Image.fromarray(frame * self.frames_to_avg.get())   # this can be scalled
+            self.image = PIL.Image.fromarray(frame)   # this can be scaled
             self.photo = PIL.ImageTk.PhotoImage(self.image)
             self.canvas.create_image(0, 0, image = self.photo, anchor = tk.NW)
         # <COMMUNICATOR>
@@ -225,8 +230,32 @@ class MainApp_camera(tk.Tk):
                 self.on_quit()
             # sending data to BRIDGE should be in DEVICE part
             self.comm_agent.send_data(-random.uniform(0, 10))
-        # </COMMINUCATOTR>
+            #### Image Saving
+            saveaction = self.comm_agent.camera_save_queue()
+            if saveaction == False:
+                pass
+            if isinstance(saveaction, str):
+                if saveaction == "start":
+                    self.record = True
+                elif saveaction == "stop":
+                    self.record = False
+                else:
+                    self.imagename = saveaction
+            if isinstance(saveaction, float):
+                self.savetime = saveaction
+            if self.record == True:
+                saveref = self.savetime - time.time()
+                if saveref <= 0:
+                    self.save_frame(self.imagename)
+                    print("CAMERA: Saving now: " + format(time.strftime("%H:%M:%S")))
+                    self.savetime = time.time() * 2
+        # </COMMUNICATOR>
         self.after(self.delay, self.update_GUI)
+
+    def save_frame(self, fname):
+        blankv, answer, frame, blankv2 = self.capture_device.get_frame()
+        if answer:
+            cv2.imwrite(fname, cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR))
 
     def verify_image_array(self):
         self.img_np = np.array(self.frame_array, np.float)
@@ -257,7 +286,6 @@ class VideoCapture():
         #print("VIDEO: Num of averages: ", parent.frames_to_avg.get())
         self.parent = parent
         self.cap = cv2.VideoCapture(video_source)
-        #self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)    # avoid lag
         if not self.cap.isOpened():
             raise ValueError("Unable to open video ", video_source)
         self.picx = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -316,16 +344,18 @@ def main():
             title="Camera (PID: {})".format(os.getpid()),
             FLAG=True,
             kq=None,
-            chc=None
+            chc=None,
+            sq=None
             )
 
-def my_dev( kill_queue, child_comm ):
+def my_dev( kill_queue, child_comm, save_queue):
     root_camera = MainApp_camera(
             parent=None,
             title="CHILD: Camera",
             FLAG=False,
             kq=kill_queue,
-            chc=child_comm
+            chc=child_comm,
+            sq=save_queue
             )
 
 def version():

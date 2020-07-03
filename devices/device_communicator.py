@@ -19,7 +19,7 @@ except ModuleNotFoundError as err:
 class Read_Config:
     def __init__(self):
         #self.to_run = []
-        self.to_run = ['simple', 'camera','voltage_source']
+        self.to_run = ['simple','camera']  # Removed voltage_source due to dict error
         """
         There will be more stuff here:
         * specifying a config file
@@ -34,6 +34,7 @@ class Main_Comm:
     def __init__(self):
         mp.set_start_method('spawn')
         self.kill_queue = mp.Queue()
+        self.save_queue = mp.Queue()   # Adding Save Queue
         self.p_conns = []
         self.ch_conns = []
         self.processes = []
@@ -46,7 +47,7 @@ class Main_Comm:
             # unidirectional pipe: p_conn <-- ch,conn
             self.p_conn, self.ch_conn = mp.Pipe(duplex=False)
             self.proc = mp.Process(target=eval(run_me), \
-                    args=(self.kill_queue, self.ch_conn, ))
+                    args=(self.kill_queue, self.ch_conn, self.save_queue,  ))   # Adding SQ
             self.proc.start()
             self.p_conns.append(self.p_conn)
             self.ch_conns.append(self.ch_conn)
@@ -65,9 +66,11 @@ class Main_Comm:
     def Pull_Data(self):
         for i, p_conn in enumerate(self.p_conns):
             while p_conn.poll():
-                #self.results[i] = round(p_conn.recv(), 3)
-                self.results[i] = p_conn.recv()
+                self.results[i] = round(p_conn.recv(), 3)
         return str(self.results)
+
+    def Camera_Saving(self, reftime):
+        self.save_queue.put(reftime)
 
     def Stop_Devices(self):
         for i in enumerate(self.processes):
@@ -81,6 +84,7 @@ class Main_Comm:
                 format(delay))
         sleep(delay)
 
+
 class GracefulKiller:
     kill_now = False
     def __init__(self):
@@ -90,28 +94,21 @@ class GracefulKiller:
     def exit_gracefully(self, signum, frame):
         self.kill_now = True
         print("\n")
-        print("Caught an interrupt signal ... claening up ...")
+        print("Caught an interrupt signal ... cleaning up ...")
         print("Terminating processes ...", process.terminate())
         sys.exit(0)
 
 
-
-
-
-
-
-
-
-
-
+##################################################################
 
 class Dev_communicator():
-    def __init__(self, win, kq, chc, data):
+    def __init__(self, win, kq, chc, data, sq):    # Added sq : Save Queue
         self.kq = kq
         self.chc = chc
         self.win = win
         self.data = data
         self.mypid = os.getpid()
+        self.sq = sq    # Save Queue
 
     def send_data(self, to_send):
         # connect to device to send data to main.py
@@ -124,6 +121,13 @@ class Dev_communicator():
             print("CHILD({}): Got {} from kill_queue ...".\
                     format(self.mypid, kill_flag))
             self.win.on_quit()
+
+    def camera_save_queue(self):
+        if not self.sq.empty():
+            save_string = self.sq.get()
+            return save_string
+        else:
+            return False
 
     def poll_queue_better(self):
         #print("CHILD: inside poll_queue function")
@@ -138,7 +142,6 @@ class Dev_communicator():
 
 
 
-
 """ <MAIN> """
 def main():
     killer = GracefulKiller()
@@ -147,6 +150,7 @@ def main():
     print("Starting to collect data")
     maxrun = 100
     for dummy in range(maxrun):
+        communicator.Camera_Saving()
         communicator.Pull_Data()
         sleep(.1)
     communicator.Stop_Devices()

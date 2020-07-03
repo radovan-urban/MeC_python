@@ -8,7 +8,7 @@ import device_communicator as dc
 
 class MainApp(tk.Tk):
     def __init__(self, parent=None, title="Device",
-            FLAG=False, kq=None, chc=None):
+            FLAG=False, kq=None, chc=None, sq=None):    # Adding save queue
         super().__init__()
         self.title(title)
         self.parent = parent
@@ -28,8 +28,9 @@ class MainApp(tk.Tk):
             self.window = self
             self.kq = kq
             self.chc = chc
+            self.sq = sq
             self.comm_agent = dc.Dev_communicator(\
-                    self.window, self.kq, self.chc, 2.2\
+                    self.window, self.kq, self.chc, 2.2, self.sq\
                     )
         else:
             self.b_QUIT["state"] = tk.NORMAL
@@ -62,7 +63,8 @@ def main():
             title="Main",
             FLAG=True,
             kq=None,
-            chc=None
+            chc=None,
+            sq=None
             )
 
 """
@@ -70,14 +72,15 @@ Test: to be called from main.py
 Only creates GUI interface; no communication.
 Does not end properly ... yet!
 """
-def my_dev( kill_queue, child_comm ):
+def my_dev( kill_queue, child_comm, save_queue ):
     #print("CHILD: SIMPLE({}): PIPE: {}".format(os.getpid(), child_comm))
     root = MainApp(
             parent=None,
             title="CHILD: Simple",
             FLAG=False,
             kq=kill_queue,
-            chc=child_comm
+            chc=child_comm,
+            sq=save_queue
             )
 
 

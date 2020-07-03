@@ -19,7 +19,7 @@ import sys
 import os
 
 from matplotlib.backends.backend_tkagg import (
-    FigureCanvasTkAgg, NavigationToolbar2Tk)
+    FigureCanvasTkAgg, NavigationToolbar2TkAgg)
 # Implement the default Matplotlib key bindings.
 from matplotlib.backend_bases import key_press_handler
 from matplotlib.figure import Figure
@@ -279,7 +279,7 @@ class StatusLine(tk.Frame):
 
 class MainApp(tk.Tk):
     def __init__(self, parent=None, title="default", position="+100+100",
-            FLAG=True, kq=None, chc=None):
+            FLAG=True, kq=None, chc=None, sq=None):
         super().__init__()      # initializing Tk itself
         self.parent = parent
         self.title(title)
@@ -292,9 +292,9 @@ class MainApp(tk.Tk):
             self.window = self
             self.kq = kq
             self.chc = chc
+            self.sq = sq
             self.comm_agent = dc.Dev_communicator(\
-                    self.window, self.kq, self.chc, 3.3\
-                    )
+                    self.window, self.kq, self.chc, 3.3, self.sq)
             self.cfg_file = filedialog.askopenfilename(initialdir=".",\
                     title="Select config file",
                     filetypes=(("cfg files","*.cfg"),("all files","*.*")))
@@ -445,17 +445,19 @@ def main():
             position="+700+100",
             FLAG=True,      # T: running on its own
             kq=None,
-            chc=None
+            chc=None,
+            sq=None
             )
 
-def my_dev(kill_queue, child_comm):
+def my_dev(kill_queue, child_comm, save_queue):
     root = MainApp(
         parent=None,
         title="CHILD: VOltage (PID: {})".format(os.getpid()),
         position="+700+100",
         FLAG=False,         # F: started from BRIDGE
         kq=kill_queue,
-        chc=child_comm
+        chc=child_comm,
+        sq=save_queue
         )
 
 def version():

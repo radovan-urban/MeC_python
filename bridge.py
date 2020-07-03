@@ -306,16 +306,24 @@ class MainApp(tk.Tk):
         """ Declaring variables """
         """ initial directory: should be set in config file when implemented """
         self.Directory = os.getcwd()
+        #DirectoryName = "001_"           # Needs to check directory for number
+        #path = os.path.join(self.Directory, DirectoryName)
+        #os.mkdir(path)
 
         self.Recording = tk.BooleanVar()
         self.Recording.set(False)
 
         self.Recording_interval = tk.IntVar()
-        self.Recording_interval.set(100)
+        self.Recording_interval.set(15)
 
         self.Devices = "dummy names"        # populated when communicator starts
 
         self.timing_reference = time.time()
+        self.frame_number = 1
+        self.savetime = time.time() * 2
+        self.newrecordingtime = False
+        self.camerastarted = False
+        self.saveinfosent = False
 
         """ Hardware ... two places ... before or after GUI """
         print("BRIDGE: Initializing communication ...")
@@ -356,7 +364,6 @@ class MainApp(tk.Tk):
 
     def update_GUI(self):
         update_delay = 100
-        #sleep(.5)
         pulled = self.communicator.Pull_Data()
         #print("Var window open? ", self.Var_window.state())
         #self.MainFrame.dev_lbl["text"] = pulled
@@ -364,11 +371,38 @@ class MainApp(tk.Tk):
             self.Var_window.BF_dev_names["text"] = self.Devices
             self.Var_window.TF_wdv["text"] = self.Directory
             self.Var_window.BF_dev_vals["text"] = pulled
+        ''' Camera Recording '''
+        ### Sets time to current time plus timing interval
+        if self.newrecordingtime == False and self.Recording.get() == True:
+            self.timing_reference = time.time()
+            self.newrecordingtime = True
+        ### Sending data to camera and recording
         if self.Recording.get():
-            dt = time.time() - self.timing_reference
-            if dt >= self.Recording_interval.get():
-                self.timing_reference = time.time()
-                print("Saving now: {}".format(self.timing_reference))
+            period = self.Recording_interval.get()
+            # If recording interval changes send to camera
+            if self.savetime != self.timing_reference + period:
+                self.savetime = self.timing_reference + period
+                self.saveinfosent = False
+            self.savetime = self.timing_reference + period
+            imagename = str("{:05d}".format(self.frame_number) + ".png")
+            if self.camerastarted == False:
+                self.communicator.Camera_Saving("start")
+                self.camerastarted = True
+            if self.saveinfosent == False:  # Send image time and name
+                 self.communicator.Camera_Saving(self.savetime)
+                 self.communicator.Camera_Saving(imagename)
+                 self.saveinfosent = True
+            saveref = self.savetime - time.time()
+            if saveref <= 0:
+               print("BRIDGE: Saving now: {}".format(time.strftime("%H:%M:%S")))
+               self.frame_number += 1
+               self.timing_reference = time.time()
+               self.saveinfosent = False
+        else:
+            self.frame_number = 1  ## If recording stopped, frame # reset
+            self.communicator.Camera_Saving("stop")
+            self.camerastarted = False
+            self.newrecordingtime = False
         self.after(update_delay, self.update_GUI)
 
     def display_variables(self):
