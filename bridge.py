@@ -306,9 +306,7 @@ class MainApp(tk.Tk):
         """ Declaring variables """
         """ initial directory: should be set in config file when implemented """
         self.Directory = os.getcwd()
-        #DirectoryName = "001_"           # Needs to check directory for number
-        #path = os.path.join(self.Directory, DirectoryName)
-        #os.mkdir(path)
+        self.highest = 0 # Highest directory number
 
         self.Recording = tk.BooleanVar()
         self.Recording.set(False)
@@ -318,6 +316,9 @@ class MainApp(tk.Tk):
 
         self.Devices = "dummy names"        # populated when communicator starts
 
+        self.savedir = ""
+
+        self.directory_set = False
         self.timing_reference = time.time()
         self.frame_number = 1
         self.savetime = time.time() * 2
@@ -357,10 +358,38 @@ class MainApp(tk.Tk):
 
         self.killer = device_communicator.GracefulKiller()        # not sure here?!
 
-
         #<RUN mainloop()>
         self.update_GUI()
         self.mainloop()
+
+    def get_save_dir(self):
+        self.DirectoryName = self.save_dir()
+        path = os.path.join(self.Directory, self.DirectoryName)
+        os.mkdir(path)
+        self.savedir = "/" + self.Directory + "/" + self.DirectoryName + "/"
+
+    def save_dir(self):
+        mainD = os.getcwd()
+        subD = os.listdir(mainD)
+        for files in subD:
+            folder = files.split("_")
+            savefolder = self.is_num(folder[0])
+            if savefolder:
+                holder = int(folder[0])
+                if holder > self.highest:
+                    self.highest = holder
+                else:
+                    pass
+        self.highest += 1
+        name = str("{:04d}".format(self.highest) + "_")
+        return name
+
+    def is_num(self, string):
+        try:
+            int(string)
+            return(True)
+        except ValueError:
+            return False
 
     def update_GUI(self):
         update_delay = 100
@@ -378,6 +407,9 @@ class MainApp(tk.Tk):
             self.newrecordingtime = True
         ### Sending data to camera and recording
         if self.Recording.get():
+            if self.directory_set == False:
+                self.get_save_dir()
+                self.directory_set = True
             period = self.Recording_interval.get()
             # If recording interval changes send to camera
             if self.savetime != self.timing_reference + period:
@@ -387,6 +419,8 @@ class MainApp(tk.Tk):
             imagename = str("{:05d}".format(self.frame_number) + ".png")
             if self.camerastarted == False:
                 self.communicator.Camera_Saving("start")
+                self.communicator.Camera_Saving("Directory")   # Send directory with start
+                self.communicator.Camera_Saving(self.savedir)  # command
                 self.camerastarted = True
             if self.saveinfosent == False:  # Send image time and name
                  self.communicator.Camera_Saving(self.savetime)
@@ -403,6 +437,7 @@ class MainApp(tk.Tk):
             self.communicator.Camera_Saving("stop")
             self.camerastarted = False
             self.newrecordingtime = False
+            self.directory_set = False
         self.after(update_delay, self.update_GUI)
 
     def display_variables(self):

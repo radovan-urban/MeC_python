@@ -171,6 +171,7 @@ class MainApp_camera(tk.Tk):
         self.record = False
         self.imagename = "undefined.png"
         self.savetime = time.time() * 2
+        self.directory = ""
 
         """ Building the interface """
         """ ************************************************************ """
@@ -239,8 +240,10 @@ class MainApp_camera(tk.Tk):
                     self.record = True
                 elif saveaction == "stop":
                     self.record = False
+                elif saveaction == "Directory":
+                    self.directory = self.comm_agent.camera_save_queue()
                 else:
-                    self.imagename = saveaction
+                    self.imagename = self.directory + saveaction
             if isinstance(saveaction, float):
                 self.savetime = saveaction
             if self.record == True:
