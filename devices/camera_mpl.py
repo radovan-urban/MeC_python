@@ -218,7 +218,6 @@ class MainApp_camera(tk.Tk):
         """ ************************************************************ """
         """ Menus """
         self.config(menu = MenuBar(self))
-        """ Interface is complete! """
 
         """ Creating frames """
         #self.TopBar = Frame_TopBar(self)
@@ -232,6 +231,8 @@ class MainApp_camera(tk.Tk):
         self.canvas = tk.Canvas(self.ImageFrame, width=640, height=480)
         self.canvas.pack(side="left", padx=10, pady=10)
         """
+
+        """ Interface is complete! """
 
 
         # <HW & COM>

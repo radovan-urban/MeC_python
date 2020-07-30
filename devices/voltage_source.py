@@ -4,12 +4,12 @@
 '''
 DESCRIPTION
 ===========
-This is 0-10V power supply (range depends on a board: Adafruit_MCP4725)
-There is also a fake display that takes the set voltage value and adds
-noise to it.
+    This is 0-10V power supply (range depends on a board: Adafruit_MCP4725)
+    There is also a fake display that takes the set voltage value and adds
+    noise to it.
 
-Coded sometimes in 2020 during COVID-19 pandemic.
-Authors: R. Urban, J. McMonagle
+    Coded sometimes in 2019-2020 during COVID-19 pandemic.
+    Authors: R. Urban, J. McMonagle
 '''
 
 import tkinter as tk
@@ -17,16 +17,21 @@ from tkinter import filedialog
 import time
 import sys
 import os
+import multiprocessing as mp
 
-from matplotlib.backends.backend_tkagg import (
-    FigureCanvasTkAgg, NavigationToolbar2TkAgg)
+# one "version" needs NavigationToolbar2(TkAgg) ... strange
+try:
+    from matplotlib.backends.backend_tkagg import (
+        FigureCanvasTkAgg, NavigationToolbar2TkAgg)
+except ImportError:
+    from matplotlib.backends.backend_tkagg import (
+        FigureCanvasTkAgg, NavigationToolbar2Tk)
+
 # Implement the default Matplotlib key bindings.
 from matplotlib.backend_bases import key_press_handler
 from matplotlib.figure import Figure
 
 import configparser
-
-import device_communicator as dc        # might pick up different name
 
 try:
     #<HARDWARE>
@@ -123,10 +128,8 @@ class MenuBar(tk.Menu):
         fileMenu = tk.Menu(self, tearoff=False)
         self.add_cascade(label="File", underline=0, menu=fileMenu)
         #fileMenu.add_command(label="Exit", underline=1, command=lambda: ConfirmQuit(parent))
-        if parent.FLAG:
-            fileMenu.add_command(label="Exit", underline=1, command=parent.on_quit)
-        else:
-            fileMenu.add_command(label="Exit", underline=1, command=lambda: None)
+        fileMenu.add_command(label="Exit", underline=1, \
+                command=self.verified_quit)
 
         deviceMenu = tk.Menu(self, tearoff=False)
         self.add_cascade(label="Voltage", underline=0, menu=deviceMenu)
@@ -141,6 +144,12 @@ class MenuBar(tk.Menu):
         self.add_cascade(label="Help", underline=0, menu=helpMenu)
         helpMenu.add_command(label="About", command=lambda: None)
         helpMenu.add_command(label="Help", command=lambda: None)
+
+    def verified_quit(self):
+        if self.parent.conf:
+            pass
+        else:
+            self.parent.on_quit()
 
 class Main_GUI(tk.Frame):
     def __init__(self, parent=None):
@@ -284,31 +293,25 @@ class StatusLine(tk.Frame):
 
 class MainApp(tk.Tk):
     def __init__(self, parent=None, title="default", position="+100+100",
-            FLAG=True, kq=None, chc=None, sq=None):
+            conf=None, kq=None, chc=None, sq=None):
         super().__init__()      # initializing Tk itself
         self.parent = parent
+        self.conf = conf
         self.title(title)
-        self.FLAG = FLAG        # True=standalone, False=as child
+        self.chc = chc
+        self.kq = kq
+        self.sq = sq
 
         # <HW & communication>
-        self.VM = Voltage_source(parent=self)
-        if not self.FLAG:
-            self.protocol("WM_DELETE_WINDOW", self.iconify)
-            self.window = self
-            self.kq = kq
-            self.chc = chc
-            self.sq = sq
-            self.comm_agent = dc.Dev_communicator(\
-                    self.window, self.kq, self.chc, 3.3, self.sq)
-            self.cfg_file = filedialog.askopenfilename(initialdir=".",\
-                    title="Select config file",
-                    filetypes=(("cfg files","*.cfg"),("all files","*.*")))
+        if conf:
+            self.protocol("WM_DELETE_WINDOW", lambda: None)
         else:
+            ''' running solo '''
             self.protocol("WM_DELETE_WINDOW", self.on_quit)
-            # if running solo open config file
-            self.cfg_file = filedialog.askopenfilename(initialdir=".",\
-                    title="Select config file", initialfile="config.cfg",
-                    filetypes=(("cfg files","*.cfg"),("all files","*.*")))
+            _fakePipe, self.chc = mp.Pipe(duplex=False)
+            self.kq = mp.Queue()
+
+        self.VM = Voltage_source(parent=self, _chc=self.chc)
         # </HW & communication>
 
         self.initialization()
@@ -367,20 +370,12 @@ class MainApp(tk.Tk):
         status_disp_time = 3    # time in seconds
         self.status_disp_cycles = status_disp_time*1000/self.update_period
 
-        try:
-            os.path.isfile(self.cfg_file)           ## check what happens when file is not CFG ??
-            self.cfg = configparser.ConfigParser()
-            self.cfg.read(self.cfg_file)
-            Glassman = self.cfg['Glassman']
-            for k, v in my_init.items():
-                try:
-                    my_init[k] = Glassman[k]
-                except KeyError:
-                    pass
-        except TypeError:
-            print("Empty path to cfg file! Default values are used ...")
-        except configparser.MissingSectionHeaderError:
-            print("Wrong file format! Default values are used ...")
+        for k, v in my_init.items():
+            try:
+                my_init[k] = self.conf[k]
+            except KeyError: pass           # missing key
+            except AttributeError: pass     # no CONFIG ... solo
+            except TypeError: pass          # conf=None
 
         """ asign values to variables +++++++++++++++++++++ """
         position = my_init['position']
@@ -404,10 +399,9 @@ class MainApp(tk.Tk):
                 self.stat_info.set("Running ...")
                 self.old_stat = self.stat_info.get()
         """ above can go """
-        if not self.FLAG:
-            action = self.comm_agent.poll_queue_better()
-            if action:
-                self.on_quit()
+        if not self.kq.empty():
+            string_received = self.kq.get()
+            self.on_quit()
         self.after(self.update_period, self.update_GUI)
 
     def on_quit(self):
@@ -415,10 +409,12 @@ class MainApp(tk.Tk):
         self.VM.set_voltage( self.GUIvoltage.get() )
         print("VOLT: Closing the application ... HAL out _/\__/\___/\__________")
 
+        self.chc.close()
         self.destroy()
 
 class Voltage_source():
-    def __init__(self, parent=None):
+    def __init__(self, parent, _chc):
+        self._chc = _chc
         self.parent = parent
         try:
             self.i2c = busio.I2C(board.SCL, board.SDA)
@@ -426,8 +422,10 @@ class Voltage_source():
         except:
             print("No board detected")
             # create a fake variable that program can run
-        self.tosend = {"{}".format("V_tip [V]"):"init",
-                "{}".format("dummy3"):"init"}
+        self.tosend = {\
+                'V_tip [V]':'-1',\
+                'dummy':'fake num',\
+                }
 
     def set_voltage(self, High_voltage):     # need to add another parameter: High_volt
         High_voltage = self.parent.GUIvoltage.get()
@@ -439,9 +437,8 @@ class Voltage_source():
         self.parent.stat_info.set("New voltage: {}V".format(High_voltage))
         """ send set voltage values to BRIDGE """
         self.tosend['V_tip [V]'] = str(High_voltage)
-        if not self.parent.FLAG:
-            #self.parent.comm_agent.send_data(High_voltage)
-            self.parent.comm_agent.send_data(self.tosend)
+
+        self._chc.send(self.tosend)
         return 0
 
 def main():
@@ -449,18 +446,18 @@ def main():
             parent=None,
             title="Voltage (PID: {})".format(os.getpid()),
             position="+700+100",
-            FLAG=True,      # T: running on its own
+            conf=None,
             kq=None,
             chc=None,
             sq=None
             )
 
-def my_dev(kill_queue, child_comm, save_queue):
+def my_dev( conf_sect, kill_queue, child_comm, save_queue ):
     root = MainApp(
         parent=None,
         title="CHILD: VOltage (PID: {})".format(os.getpid()),
         position="+700+100",
-        FLAG=False,         # F: started from BRIDGE
+        conf=conf_sect,
         kq=kill_queue,
         chc=child_comm,
         sq=save_queue

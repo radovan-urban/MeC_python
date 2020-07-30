@@ -4,36 +4,63 @@
 '''
 DESCRIPTION
 ===========
-Simple template to preven accidental closure of the BRIDGE.
-It provides shut-down function to ensure safe exit.
-It also disables x button.
-Based on Reblochon Masque:
-https://stackoverflow.com/questions/51690259/create-a-popup-window-to-confirm-quitting-a-tkinter-app
-Also good reads:
-https://stackoverflow.com/questions/18067915/what-is-the-purpose-of-master-and-master-none-in-an-init-function-in-python
-https://stackoverflow.com/questions/24729119/what-does-calling-tk-actually-do
-Menus by Bryan Oakley:
-https://stackoverflow.com/questions/3520494/class-menu-in-tkinter-gui
-Iconify/withdraw/deiconify reading:
-https://stackoverflow.com/questions/22834150/difference-between-iconify-and-withdraw-in-python-tkinter
+    The brain of the Measurent Center.  It serves several purposes:
+        + reads config file;
+        + starts all devices;
+        + collects all desirable data and keeps a log file;
+        + safely terminates all process by issuing a shutdown.
+    The configuration file determins which devices will be started.
+    This makes the code portable as well as flexible to add/remove
+    devices as needed.
 
-TO DOes and ISSUES
-==================
-* Make a large Toplevel pop-up window for Help and About.
-    Not much in there yet, but a good start.
-*
+    Coded sometimes in 2019-2020 during the COVID-19 pandemic.
+    Authors: R. Urban, J. McMonagle.
+'''
+
+'''
+EXECUTION FLOW
+==============
+    1/ run BRIDGE.py
+    2/ declaring variables
+    3/ initializes DEVICE/DEVICE_COMMUNICATOR.py
+        3.1/ declares QUEUEs and PIPEs
+        3.2/ selects & reads CONFIG
+        3.3/ passes BRIDGE stansa to the BRIDGE
+        3.4/ identifies devices to be started
+        3.5/ starts each device and sends appropriate stansa from CONFIG
+    4/ devices start
+        4.1/ devices receives its own stansa from CONFIG
+        4.2/ each device has built-in default SAVE values
+        4.3/ each device reads stansa from CONFIG and updates parameters
+        4.4/ all devices are running
+        4.5/ devices send requested data to the BRIDGE
+    5/ BRIDGE continuesly monitors data from devices
 '''
 
 
 import tkinter as tk
 from tkinter import filedialog
-from time import sleep
 import os
 import sys
 import time
 
+
+_platform = sys.platform    # linux, darwin, win32, cygwin
+print("PLatform: ", _platform)
+
+_working_directory = os.getcwd()
+_project_directory = os.path.dirname(os.path.realpath(__file__))
+_device_folder = 'devices'
+if _platform == 'linux' or _platform == 'darwin':
+    _separator = '/'
+elif _platform == 'win32':
+    _separator = '\\'
+print("Platform: {} uses separator: {}".format(_platform, _separator))
+_device_path = _project_directory + _separator + _device_folder
+_config_path = _project_directory + _separator + 'config'
+
 """ add ./devices to python path """
-sys.path.append(os.path.expanduser("./devices"))
+sys.path.append(os.path.expanduser(_device_path))
 
 import device_communicator
 
@@ -283,11 +310,11 @@ class Frame_BotFrame(tk.Frame):
         self.L_wd_value.grid(column=0, row=1, columnspan=3, sticky="we")
         self.B_br.grid(column=2, row=0, sticky="ne")
 
-        """ debugging """
-        #pirnt("Working directory: ", self.directory)
-
     def change_dir(self):
-        self.parent.Directory = filedialog.askdirectory()
+        self.parent.Directory = filedialog.askdirectory(
+                initialdir=self.parent.Directory,
+                title="Select working directory"
+                )
         self.L_wd_value["text"] = self.parent.Directory
 
 class MainApp(tk.Tk):
@@ -307,6 +334,7 @@ class MainApp(tk.Tk):
         """ initial directory: should be set in config file when implemented """
         self.Directory = os.getcwd()
         self.highest = 0 # Highest directory number
+        print("BRIDGE: Bridge directory: {}".format(self.Directory))
 
         self.Recording = tk.BooleanVar()
         self.Recording.set(False)
@@ -314,8 +342,7 @@ class MainApp(tk.Tk):
         self.Recording_interval = tk.IntVar()
         self.Recording_interval.set(15)
 
-        self.Devices = "dummy names"        # populated when communicator starts
-
+        # save directory should come from config file
         self.savedir = ""
 
         self.directory_set = False
@@ -328,15 +355,15 @@ class MainApp(tk.Tk):
 
         """ Hardware ... two places ... before or after GUI """
         print("BRIDGE: Initializing communication ...")
-        self.communicator = device_communicator.Main_Comm()
-        self.Devices = self.communicator.Get_devices()
+        self.communicator = device_communicator.Main_Comm(self.Directory)
+        self.Devices, Bridge = self.communicator.Get_devices()
+        self.parse_config(Bridge)
         """ ----------------------------------------------- """
 
         """ Building the interface """
         """ ************************************************************ """
         """ Menus """
         self.config(menu = MenuBar(self))
-        """ Interface is complete! """
 
         """ Creating frames """
         #self.TopBar = Frame_TopBar(self)
@@ -361,6 +388,19 @@ class MainApp(tk.Tk):
         #<RUN mainloop()>
         self.update_GUI()
         self.mainloop()
+
+    def parse_config(self, Bridge):
+        # default values for all possible keys
+        print("BRIDGE: getting values from CONFIG ...")
+        my_init = {
+                'directory':self.Directory,
+                'position':'+1+1',
+        }
+        for k, v in my_init.items():
+            try: my_init[k] = Bridge[k]
+            except KeyError: pass
+            #print("{} = {}".format(k, my_init[k]))
+        self.Directory = my_init['directory']
 
     def get_save_dir(self):
         self.DirectoryName = self.save_dir()
@@ -392,14 +432,17 @@ class MainApp(tk.Tk):
             return False
 
     def update_GUI(self):
-        update_delay = 100
-        pulled = self.communicator.Pull_Data()
-        #print("Var window open? ", self.Var_window.state())
-        #self.MainFrame.dev_lbl["text"] = pulled
+        update_delay = 500
+
+        _h, _v = self.parse_variables()
+
         if self.Var_window.state() == "normal":
-            self.Var_window.BF_dev_names["text"] = self.Devices
             self.Var_window.TF_wdv["text"] = self.Directory
-            self.Var_window.BF_dev_vals["text"] = pulled
+
+            self.Var_window.BF_dev_names["text"] = _h
+            self.Var_window.BF_dev_vals["text"] = _v
+
+
         ''' Camera Recording '''
         ### Sets time to current time plus timing interval
         if self.newrecordingtime == False and self.Recording.get() == True:
@@ -440,6 +483,29 @@ class MainApp(tk.Tk):
             self.directory_set = False
         self.after(update_delay, self.update_GUI)
 
+    def parse_variables(self):
+        '''
+        Description:
+        The function PULLs data dictionaries from all devices.
+        It formats both the HEADER and VALUES into a string
+        with desirable column width controlled by a variable.
+
+        Returns:
+        Two strings: HEADER and VALUES
+        '''
+        _header = ''
+        _all_vals = ''
+        try:
+            stat, pulled = self.communicator.Pull_Data()
+            for x in pulled:
+                for k, v in x.items():
+                    _header += "{:<10}".format(k)
+                    _all_vals += "{:<10}".format(v)
+        except AttributeError: pass
+
+        return _header, _all_vals
+
+
     def display_variables(self):
         self.Var_window.deiconify()
 
@@ -448,13 +514,17 @@ class MainApp(tk.Tk):
         ppp="Window position: +{}+{}".format(self.winfo_x(), self.winfo_y())
         print(ppp)
 
-
-
     def on_quit(self):
-        print("BRIDGE: Shutting down devices ...")
+        print("BRIDGE: Shutting down devices: {}".format(self.Devices))
         self.communicator.Stop_Devices()
-        sleep(1)
-        print("BRIDGE: HAL, power off GUI ...")
+
+        _all = False
+        while not _all:
+            stat, pulled = self.communicator.Pull_Data()
+            _all = all(x == 'CLOSED' for x in stat)
+            time.sleep(1)
+
+        print("BRIDGE: HAL, all devices are off!  Power off ...")
         self.destroy()
 
 def main():

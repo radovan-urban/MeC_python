@@ -3,11 +3,21 @@ import os
 import sys
 from time import sleep
 import signal
-# import configparser
+from tkinter import filedialog
+import configparser
 
 """ add ./devices to python path """
 sys.path.append(os.path.expanduser("./devices"))
 
+
+"""
+    The modules should be imported as needed.
+    That means they will be loaded AFTER config file is processed.
+    For now the config file will be read as a part of MAIN_COMM class.
+    Note: keys and values will be passed to devices incl. the bridge as
+    a dictionary.
+    There is no need to process config file repeatedly.
+"""
 try:
     import simple           # just for testing
     import camera           # camera module
@@ -16,23 +26,9 @@ except ModuleNotFoundError as err:
     print("ERROR: {}!  Exitting ...".format(err))
     sys.exit(True)
 
-class Read_Config:
-    def __init__(self):
-        #self.to_run = []
-        self.to_run = ['simple','camera', 'voltage_source']
-        # Removed voltage_source due to dict error
-        """
-        There will be more stuff here:
-        * specifying a config file
-        * parsing the config file
-        * etc.
-        """
-
-    def Run(self):
-        return self.to_run
-
 class Main_Comm:
-    def __init__(self):
+    def __init__(self, init_conf_path='.'):
+        self.init_conf_path = init_conf_path
         mp.set_start_method('spawn')
         self.kill_queue = mp.Queue()
         self.save_queue = mp.Queue()   # Adding Save Queue
@@ -40,68 +36,120 @@ class Main_Comm:
         self.ch_conns = []
         self.processes = []
 
-        configurator = Read_Config()
-        self.devices = configurator.Run()
+        self.devs = self.Read_config()
+        print("COMM: Devices from config: {}".format(self.devs))
+        self.devs.remove('Bridge')
+        print("COMM: Removed: {}".format(self.devs))
+        # looking for key 'executable'
+        to_run = []
+        init_dict = []
+        for d in self.devs:
+            run = self.cfg[d]['executable']
+            to_run.append(run)
+            init_dict.append(self.cfg[d])
 
-        for pr in self.devices:
-            run_me = pr+".my_dev"
+        print("All to run: {}".format(to_run))
+
+        for pr, conf in zip(to_run, init_dict):     # self.devices or to_run
+            run_me = pr
             # unidirectional pipe: p_conn <-- ch,conn
             self.p_conn, self.ch_conn = mp.Pipe(duplex=False)
             self.proc = mp.Process(target=eval(run_me), \
-                    args=(self.kill_queue, self.ch_conn, self.save_queue,  ))   # Adding SQ
+                    args=( \
+                        conf,                 # device section of config
+                        self.kill_queue,      # kill queue
+                        self.ch_conn,         # CHILD end of the PIPE
+                        self.save_queue,      # save queue for CAMERA
+                        ))
             self.proc.start()
             self.p_conns.append(self.p_conn)
             self.ch_conns.append(self.ch_conn)
             self.processes.append(self.proc)
-            """
-            print("MAIN: Parent PIPE: {}".format(self.p_conn))
-            print("MAIN: {}({}): PIPE: {}".format(
-                pr.upper(), self.proc.pid, self.ch_conn))
-            """
 
         self.results = [None] * len(self.processes)
+        self.stat = [None] * len(self.processes)
 
+
+    def Read_config(self):
+        """
+        Add some meaningfull text here ... explain config strategy.
+        """
+        self.cfg_file = filedialog.askopenfilename(
+                initialdir=".",\
+                title="Select config file", initialfile="config.cfg",\
+                filetypes=(("cfg files","*.cfg"),("all files","*.*")))
+
+        print("COMM: Reading config file ...")
+
+        try:
+            os.path.isfile(self.cfg_file)
+            self.cfg = configparser.ConfigParser()
+            what_is_this = self.cfg.read(self.cfg_file)
+            print("COMM: config file found .... {}".format(what_is_this))
+
+            self.Bridge = self.cfg['Bridge']
+            print("COMM: Config dictionalry: ", self.Bridge)
+        except TypeError:
+            print("Empty path to cfg file! Default values are used ...")
+        except configparser.MissingSectionHeaderError:
+            print("Wrong file format! Default values are used ...")
+
+        return self.cfg.sections()
+
+    # Dummy function to pass devices to BRIDGE
     def Get_devices(self):
-        return self.devices
+        return self.devs, self.Bridge
+
+    '''
+    to be deleted
+    def Pull_Data2(self):
+        for i, p_conn in enumerate(self.p_conns):
+            #print("COMM: Pipe.poll() status: ", p_conn.poll())
+            while p_conn.poll():
+                try:
+                    self.results[i] = str(p_conn.recv())
+                except EOFError as err:
+                    print("COMM: pipe is closed ... sending CLOSED")
+                    self.results[i] = 'CLOSED'
+                    break
+                except:
+                    print("COMM: Other error during polling the PIPEs")
+
+        return self.results
+    '''
 
     def Pull_Data(self):
         for i, p_conn in enumerate(self.p_conns):
+            #print("COMM: Pipe.poll() status: ", p_conn.poll())
             while p_conn.poll():
-                self.results[i] = p_conn.recv()
-        return str(self.results)
+                try:
+                    self.results[i] = p_conn.recv()
+                    self.stat[i] = str(i)
+                except EOFError as err:
+                    #print("COMM: pipe is closed ... sending CLOSED")
+                    self.results[i] = None
+                    self.stat[i] = 'CLOSED'
+                    break
+
+        return self.stat, self.results
 
     def Camera_Saving(self, reftime):
         self.save_queue.put(reftime)
 
     def Stop_Devices(self):
+        print("COMM: Delete child PIPE before triggerint kill.queue ...")
+        for pi in self.ch_conns:
+            pi.close()
+
         for i in enumerate(self.processes):
             self.kill_queue.put(True)
         """
         for proc in self.processes:
             proc.join()
         """
-        delay = 2
-        print("MAIN_COMM: Waiting ({}s) for processes to finish ...".\
-                format(delay))
-        sleep(delay)
+        print("MAIN_COMM: Waiting for processes to finish ...")
 
-
-class GracefulKiller:
-    kill_now = False
-    def __init__(self):
-        signal.signal(signal.SIGINT, self.exit_gracefully)
-        signal.signal(signal.SIGTERM, self.exit_gracefully)
-
-    def exit_gracefully(self, signum, frame):
-        self.kill_now = True
-        print("\n")
-        print("Caught an interrupt signal ... cleaning up ...")
-        print("Terminating processes ...", process.terminate())
-        sys.exit(0)
-
-
-##################################################################
-
+"""
 class Dev_communicator():
     def __init__(self, win, kq, chc, data, sq):    # Added sq : Save Queue
         self.kq = kq
@@ -114,14 +162,6 @@ class Dev_communicator():
     def send_data(self, to_send):
         # connect to device to send data to main.py
         self.chc.send(to_send)
-
-    def poll_queue(self):
-        #print("CHILD: inside poll_queue function")
-        if not self.kq.empty():
-            kill_flag = self.kq.get()
-            print("CHILD({}): Got {} from kill_queue ...".\
-                    format(self.mypid, kill_flag))
-            self.win.on_quit()
 
     def camera_save_queue(self):
         if not self.sq.empty():
@@ -136,30 +176,22 @@ class Dev_communicator():
             kill_flag = self.kq.get()
             print("CHILD({}): Got {} from kill_queue ...".\
                     format(self.mypid, kill_flag))
-            #self.win.on_quit()
             return kill_flag
         else:
             return False
+"""
 
+class GracefulKiller:
+    kill_now = False
+    def __init__(self):
+        signal.signal(signal.SIGINT, self.exit_gracefully)
+        signal.signal(signal.SIGTERM, self.exit_gracefully)
 
-
-""" <MAIN> """
-def main():
-    killer = GracefulKiller()
-
-    communicator = Main_Comm()
-    print("Starting to collect data")
-    maxrun = 100
-    for dummy in range(maxrun):
-        communicator.Camera_Saving()
-        communicator.Pull_Data()
-        sleep(.1)
-    communicator.Stop_Devices()
-
-if __name__ == '__main__':
-    main()
-    print ('''Main thread done.''')
-
-
+    def exit_gracefully(self, signum, frame):
+        self.kill_now = True
+        print("\n")
+        print("Caught an interrupt signal ... cleaning up ...")
+        print("Terminating processes ...", process.terminate())
+        sys.exit(0)
 
 # EOF device_communicator.py
