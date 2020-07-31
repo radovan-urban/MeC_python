@@ -135,35 +135,31 @@ class MainApp(tk.Tk):
         self.geometry(my_init['position'])
         self.delay = int(my_init['update'])
 
-        # Making dictionary keys into variable names
-        '''
-        _test_string = "self.test = '{}'".format(my_init['self.test'])
-        print("Test string: ", _test_string)
-        exec(_test_string)
-        print("New variable self.test has value {}".format(self.test))
-        '''
 
     def update_GUI(self):
+        # generating data
         data_to_send = str(round(random.uniform(0, 10), 2))
-        # I think I don't need comm_agent at all!
-        #self.comm_agent.send_data(data_to_send)
         self.tosend['Random'] = data_to_send
-        print("Sending ...", self.tosend)
-        self.chc.send(self.tosend)
+        if self.chc:
+            self.chc.send(self.tosend)
 
+        # Updading GUI
         self.FrontPanel.value_disp['text'] = data_to_send
         self.delay = 1001
 
+        # Checking the kill queue
         if not self.kq.empty():
             string_recived = self.kq.get()
             print("CHILD({}): Received {} from kill_queue!"\
                     .format(os.getpid(), string_recived))
             self.on_quit()
 
+        # Update loop
         self.after(self.delay, self.update_GUI)
 
     def on_quit(self):
-        self.chc.close()
+        if self.chc:
+            self.chc.close()
         self.destroy()
         print("SIMPLE: All is said and done ... pipe should be dead!")
 

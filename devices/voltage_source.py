@@ -308,7 +308,6 @@ class MainApp(tk.Tk):
         else:
             ''' running solo '''
             self.protocol("WM_DELETE_WINDOW", self.on_quit)
-            _fakePipe, self.chc = mp.Pipe(duplex=False)
             self.kq = mp.Queue()
 
         self.VM = Voltage_source(parent=self, _chc=self.chc)
@@ -408,8 +407,8 @@ class MainApp(tk.Tk):
         self.GUIvoltage.set(0)
         self.VM.set_voltage( self.GUIvoltage.get() )
         print("VOLT: Closing the application ... HAL out _/\__/\___/\__________")
-
-        self.chc.close()
+        if self.chc:
+            self.chc.close()
         self.destroy()
 
 class Voltage_source():
@@ -437,8 +436,8 @@ class Voltage_source():
         self.parent.stat_info.set("New voltage: {}V".format(High_voltage))
         """ send set voltage values to BRIDGE """
         self.tosend['V_tip [V]'] = str(High_voltage)
-
-        self._chc.send(self.tosend)
+        if self._chc:
+            self._chc.send(self.tosend)
         return 0
 
 def main():
