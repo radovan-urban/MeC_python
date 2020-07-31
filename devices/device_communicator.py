@@ -122,14 +122,24 @@ class Main_Comm:
         for i, p_conn in enumerate(self.p_conns):
             #print("COMM: Pipe.poll() status: ", p_conn.poll())
             while p_conn.poll():
+                print("COMM: Something in the pipe ... CHECKING ...")
                 try:
                     self.results[i] = p_conn.recv()
+                    print("COMM: p_conn.recv = {}".format(self.result[i]))
                     self.stat[i] = str(i)
                 except EOFError as err:
-                    #print("COMM: pipe is closed ... sending CLOSED")
+                    print("COMM: pipe is closed ... sending CLOSED ... LINUX")
                     self.results[i] = None
                     self.stat[i] = 'CLOSED'
                     break
+                except BrokenPipeError as err2:         # this seems to be needed on Windows
+                    print("COMM: pipe is closed ... sending CLOSED ... WINDOWS")
+                    self.results[i] = None
+                    self.stat[i] = 'CLOSED'
+                    break
+                except:
+                    print("COMM: Some other error?")
+
 
         return self.stat, self.results
 
