@@ -27,9 +27,9 @@ import random
 import os
 import numpy as np
 
-import device_communicator as dc
+import multiprocessing as mp
 
-
+import device_communicator
 
 
 class MenuBar(tk.Menu):
@@ -40,10 +40,10 @@ class MenuBar(tk.Menu):
         fileMenu = tk.Menu(self, tearoff=False)
         self.add_cascade(label="File", underline=0, menu=fileMenu)
         #fileMenu.add_command(label="Exit", underline=1, command=lambda: ConfirmQuit(parent))
-        if parent.FLAG:
-            fileMenu.add_command(label="Exit", underline=1, command=parent.on_quit)
-        else:
+        if self.parent.conf:
             fileMenu.add_command(label="Exit", underline=1, command=lambda: None)
+        else:
+            fileMenu.add_command(label="Exit", underline=1, command=parent.on_quit)
 
         deviceMenu = tk.Menu(self, tearoff=False)
         self.add_cascade(label="Camera", underline=0, menu=deviceMenu)
@@ -150,12 +150,12 @@ class Frame_RightNav(tk.Frame):
 
 class MainApp_camera(tk.Tk):
     def __init__(self, parent=None, title="default",
-            FLAG=False, kq=None, chc=None, sq=None):   # Adding save queue
+            conf=False, kq=None, chc=None, sq=None):   # Adding save queue
         super().__init__()
         self.parent = parent
-        self.FLAG = FLAG
+        self.conf = conf
+        self.chc = chc
 
-        self.geometry("+100+100")
         self.title(title)
 
         """ Declaring variables """
@@ -193,23 +193,55 @@ class MainApp_camera(tk.Tk):
 
         # <HW & COM>
         self.capture_device = VideoCapture(video_source=0, parent=self)
-        if not self.FLAG:
+        if conf:
             self.protocol("WM_DELETE_WINDOW", lambda: None)
-            self.window = self
             self.kq = kq
-            self.chc = chc
             self.sq = sq
-            self.comm_agent = dc.Dev_communicator(\
-                    self.window, self.kq, self.chc, 1.1, self.sq)
+            self.comm_agent = device_communicator.Dev_communicator()
         else:
             self.protocol("WM_DELETE_WINDOW", self.on_quit)
+            self.kq = mp.Queue()
+            self.sq = mp.Queue()
         # </HW & COM>
+
+        self.initialization()
 
         self.update_GUI()
         self.mainloop()
 
+    def initialization(self):
+        my_init = {
+                'position':'+10+10',
+                'update':5,
+                'averages':10,
+                'averaging':False,
+        }
+
+
+        for k, v in my_init.items():
+            try: my_init[k] = self.conf[k]
+            except KeyError: pass           # missing key in CONFIG
+            except AttributeError: pass     # no CONFIG at all ... solo
+            except TypeError: pass          # conf=None
+
+        # Assinging varaibles
+        self.geometry(my_init['position'])
+        self.delay = int(my_init['update'])
+
+        # declaring a format to send back to bridge
+        self.tosend = {}
+        self.tosend['exp [ms]'] = float('nan')      # setting a key
+        self.tosend['averages'] = float('nan')
+        self.tosend['avg on/off'] = 'off'
+        # send to bridge
+        if self.conf:
+            self.chc.send(self.tosend)
+
+
+
+
     def update_GUI(self):
-        self.delay = 5
+        # self.delay = 5            ## from config
         self.fr, answer, frame, aframe = self.capture_device.get_frame()
         #self.lbl_i["text"] = "N/A"
         self.frame_rate.set(round(self.fr, 3))
@@ -221,18 +253,16 @@ class MainApp_camera(tk.Tk):
             self.photo = PIL.ImageTk.PhotoImage(self.image)
             self.canvas.create_image(0, 0, image = self.photo, anchor = tk.NW)
         # <COMMUNICATOR>
-        if self.FLAG:
-            # <running stand-alone>
-            pass
-        else:
-            # <running as CHILD>
-            action = self.comm_agent.poll_queue_better()
-            if action:
-                self.on_quit()
-            # sending data to BRIDGE should be in DEVICE part
-            self.comm_agent.send_data(str(round(-random.uniform(0, 10), 2)))
+        if not self.kq.empty():
+            string_recived = self.kq.get()
+            print("CAM: Recieved {} from kill_queue!"\
+                    .format(string_recived))
+            self.on_quit()
+
+
+        if self.conf:
             #### Image Saving
-            saveaction = self.comm_agent.camera_save_queue()
+            saveaction = self.comm_agent.camera_save_queue(self.sq)
             if saveaction == False:
                 pass
             if isinstance(saveaction, str):
@@ -252,7 +282,11 @@ class MainApp_camera(tk.Tk):
                     self.save_frame(self.imagename)
                     print("CAMERA: Saving now: " + format(time.strftime("%H:%M:%S")))
                     self.savetime = time.time() * 2
+        else:
+            # <running alone>
+            pass
         # </COMMUNICATOR>
+
         self.after(self.delay, self.update_GUI)
 
     def save_frame(self, fname):
@@ -345,17 +379,17 @@ def main():
     root_camera = MainApp_camera(
             parent=None,
             title="Camera (PID: {})".format(os.getpid()),
-            FLAG=True,
+            conf=None,
             kq=None,
             chc=None,
             sq=None
             )
 
-def my_dev( kill_queue, child_comm, save_queue):
+def my_dev( conf_sect, kill_queue, child_comm, save_queue):
     root_camera = MainApp_camera(
             parent=None,
             title="CHILD: Camera",
-            FLAG=False,
+            conf=conf_sect,
             kq=kill_queue,
             chc=child_comm,
             sq=save_queue

@@ -39,6 +39,7 @@ EXECUTION FLOW
 
 
 import tkinter as tk
+import tkinter.font as font
 from tkinter import filedialog
 import os
 import sys
@@ -150,9 +151,12 @@ class ShowVariables(tk.Toplevel):
         self.TF_riv.grid(column=1, columnspan=2, row=3, sticky="w")
 
         """ Elements inside frame ... Bottom """
+        myFont = font.Font(family='DejaVu Sans Mono', size=7)
         self.BF_name = tk.Label(self.Bot_frame, text="DEVICE values", bg=bg2)
         self.BF_dev_names = tk.Label(self.Bot_frame, text="Device names", bg=bg2)
         self.BF_dev_vals = tk.Label(self.Bot_frame, text="TopLevel__init__", bg=bg2)
+        self.BF_dev_names['font'] = myFont
+        self.BF_dev_vals['font'] = myFont
 
         self.Bot_frame.columnconfigure(0, weight=1)
         self.Bot_frame.columnconfigure(1, pad=5)
@@ -497,10 +501,12 @@ class MainApp(tk.Tk):
         _all_vals = ''
         try:
             stat, pulled = self.communicator.Pull_Data()
+            #print("BRIDGE: status byte: ", stat)
+            #print("BRIDGE: data: ", pulled)
             for x in pulled:
                 for k, v in x.items():
-                    _header += "{:<10}".format(k)
-                    _all_vals += "{:<10}".format(v)
+                    _header += "{:<15}".format(k)
+                    _all_vals += "{:<15}".format(v)
         except AttributeError: pass
 
         return _header, _all_vals

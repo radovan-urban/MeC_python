@@ -100,45 +100,30 @@ class Main_Comm:
     def Get_devices(self):
         return self.devs, self.Bridge
 
-    '''
-    to be deleted
-    def Pull_Data2(self):
-        for i, p_conn in enumerate(self.p_conns):
-            #print("COMM: Pipe.poll() status: ", p_conn.poll())
-            while p_conn.poll():
-                try:
-                    self.results[i] = str(p_conn.recv())
-                except EOFError as err:
-                    print("COMM: pipe is closed ... sending CLOSED")
-                    self.results[i] = 'CLOSED'
-                    break
-                except:
-                    print("COMM: Other error during polling the PIPEs")
-
-        return self.results
-    '''
 
     def Pull_Data(self):
         for i, p_conn in enumerate(self.p_conns):
             #print("COMM: Pipe.poll() status: ", p_conn.poll())
             while p_conn.poll():
-                print("COMM: Something in the pipe ... CHECKING ...")
                 try:
                     self.results[i] = p_conn.recv()
-                    print("COMM: p_conn.recv = {}".format(self.result[i]))
+                    #print("COMM: p_conn.recv = {}".format(self.results[i]))
                     self.stat[i] = str(i)
                 except EOFError as err:
-                    print("COMM: pipe is closed ... sending CLOSED ... LINUX")
+                    #print("COMM: pipe is closed ... sending CLOSED ... LINUX")
                     self.results[i] = None
                     self.stat[i] = 'CLOSED'
                     break
-                except BrokenPipeError as err2:         # this seems to be needed on Windows
-                    print("COMM: pipe is closed ... sending CLOSED ... WINDOWS")
+                except BrokenPipeError as err2:         #needed on Windows
+                    #print("COMM: pipe is closed ... sending CLOSED ... WINDOWS")
                     self.results[i] = None
                     self.stat[i] = 'CLOSED'
                     break
-                except:
-                    print("COMM: Some other error?")
+                except Exception as err:
+                    #print("COMM: Other error ...", err)
+                    self.results[i] = None
+                    self.stat[i] = 'unknown'
+                    break
 
 
         return self.stat, self.results
@@ -159,23 +144,17 @@ class Main_Comm:
         """
         print("MAIN_COMM: Waiting for processes to finish ...")
 
-"""
 class Dev_communicator():
-    def __init__(self, win, kq, chc, data, sq):    # Added sq : Save Queue
-        self.kq = kq
-        self.chc = chc
-        self.win = win
-        self.data = data
-        self.mypid = os.getpid()
-        self.sq = sq    # Save Queue
+    def __init__(self):    # Added sq : Save Queue
+        pass
 
     def send_data(self, to_send):
         # connect to device to send data to main.py
         self.chc.send(to_send)
 
-    def camera_save_queue(self):
-        if not self.sq.empty():
-            save_string = self.sq.get()
+    def camera_save_queue(self, save_queue):
+        if not save_queue.empty():
+            save_string = save_queue.get()
             return save_string
         else:
             return False
@@ -189,7 +168,6 @@ class Dev_communicator():
             return kill_flag
         else:
             return False
-"""
 
 class GracefulKiller:
     kill_now = False

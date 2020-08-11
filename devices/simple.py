@@ -14,6 +14,7 @@ DESCRIPTION
 
 
 import tkinter as tk
+import tkinter.font as font
 import os
 import random
 import time
@@ -62,8 +63,20 @@ class Frame_Front_Panel(tk.Frame):
         self.config(relief="ridge")
         self.grid_propagate(False)     # prevents resizing
 
+        #print("Families: ", font.families())
+
         """ Creating all widgets """
+        myFont1 = font.Font(family='DejaVu Sans')
+        myFont2 = font.Font(family='DejaVu Sans Mono')
+
         self.value_disp = tk.Label(self, text="Camera settings", bg=_bg1, fg=_fg1)
+
+        self.test1 = tk.Label(self, text='Dejavu Sans')
+        self.test1['font'] = myFont1
+        self.test2 = tk.Label(self, text='Dejavu Sans MOno')
+        self.test2['font'] = myFont2
+
+
 
         """ General grid configuration """
         cc=5
@@ -75,6 +88,9 @@ class Frame_Front_Panel(tk.Frame):
 
         """ Placing all widgets """
         self.value_disp.grid(column=0, columnspan=2, row=0, sticky="new")
+        self.test1.grid(column=0, row=2, sticky='w')
+        self.test2.grid(column=0, row=3, sticky='w')
+
 
 class MainApp(tk.Tk):
     def __init__(self, parent=None, title="Device",
